@@ -735,6 +735,8 @@
       }
 
       // ── Core Calculation ──
+      const COMPRESSION_MIN_DROP = 5000;
+
       function analyzeConversation(data) {
         const pricing = getPricing(data.model);
         const BASE_OVERHEAD = 1500;
@@ -747,8 +749,40 @@
           newCtx = 0;
         const turns = [];
 
+        // Compression tracking
+        let prevCheckpointInput = -1;
+        let compressionEvents = [];
+        let nextTurnIsPostCompression = false; // flag: cache invalidated
+
         for (const msg of data.messages || []) {
-          if (msg.type === "checkpoint") continue;
+          // Process checkpoints for compression detection & context calibration
+          if (msg.type === "checkpoint") {
+            const cpInput = msg.tokens?.input || 0;
+            if (cpInput > 0) {
+              // Detect compression: significant drop in inputTokens
+              if (prevCheckpointInput > 0 && cpInput < prevCheckpointInput) {
+                const drop = prevCheckpointInput - cpInput;
+                if (drop > COMPRESSION_MIN_DROP) {
+                  compressionEvents.push({
+                    beforeTurn: turnCount,
+                    from: prevCheckpointInput,
+                    to: cpInput,
+                    drop,
+                  });
+                  // Recalibrate context to actual checkpoint value
+                  contextTokens = cpInput;
+                  // Cache is invalidated after compression
+                  nextTurnIsPostCompression = true;
+                }
+              } else if (cpInput > 0) {
+                // Calibrate context estimate to real checkpoint value
+                // (only if checkpoint is larger — avoids undercounting)
+                contextTokens = Math.max(contextTokens, cpInput);
+              }
+              prevCheckpointInput = cpInput;
+            }
+            continue;
+          }
 
           if (msg.type === "user") {
             const tokens = estimateTokens(msg.content);
@@ -761,8 +795,11 @@
                   contextTokens,
                   newCtx,
                   pricing,
+                  turns.length > 0 ? false : true, // isFirstTurn
+                  nextTurnIsPostCompression,
                 ),
               );
+              if (nextTurnIsPostCompression) nextTurnIsPostCompression = false;
               contextTokens += turnOutput;
             }
             turnCount++;
@@ -796,6 +833,8 @@
               contextTokens,
               newCtx,
               pricing,
+              turns.length === 0,
+              nextTurnIsPostCompression,
             ),
           );
           contextTokens += turnOutput;
@@ -821,6 +860,7 @@
           totalCached,
           agpEstimate,
           turns,
+          compressionEvents,
           usage: data.usage || {},
           createdTime: data.createdTime,
           lastModifiedTime: data.lastModifiedTime,
@@ -834,11 +874,14 @@
         historySize,
         newToks,
         pricing,
+        isFirstTurn,
+        isPostCompression,
       ) {
         const outCost = (outputToks / 1e6) * pricing.out;
         const uncachedIn = (inputToks / 1e6) * pricing.in;
         let cachedIn;
-        if (id === 1) {
+        if (isFirstTurn || isPostCompression) {
+          // First turn or after compression: cache is cold, write everything
           cachedIn = (inputToks / 1e6) * pricing.cacheWrite;
         } else {
           const readPart = Math.max(0, historySize - newToks);
@@ -852,6 +895,7 @@
           outputTokens: outputToks,
           uncached: uncachedIn + outCost,
           cached: cachedIn + outCost,
+          compressed: isPostCompression || false,
         };
       }
 
@@ -980,7 +1024,7 @@
                 </div>
                 <div class="meta-item">
                   <div class="meta-label">对话轮次</div>
-                  <div class="meta-value">${a.turnCount}</div>
+                  <div class="meta-value">${a.turnCount}${a.usage.sendCount && a.usage.sendCount !== a.turnCount ? ' <span style="font-size:0.65rem;color:var(--text-dim)">/ 原始 ' + a.usage.sendCount + " sends</span>" : ""}</div>
                 </div>
                 <div class="meta-item">
                   <div class="meta-label">最终上下文</div>
@@ -989,6 +1033,10 @@
                 <div class="meta-item">
                   <div class="meta-label">缓存节省</div>
                   <div class="meta-value" style="color:var(--accent-green)">${((1 - a.totalCached / Math.max(a.totalUncached, 0.001)) * 100).toFixed(0)}%</div>
+                </div>
+                <div class="meta-item">
+                  <div class="meta-label">上下文压缩 🗜️</div>
+                  <div class="meta-value" style="color:${a.compressionEvents.length > 0 ? "var(--accent-amber)" : "var(--text-dim)"}">${a.compressionEvents.length > 0 ? a.compressionEvents.length + " 次" : "无"}</div>
                 </div>
               </div>
               <div class="turn-table-wrap">
@@ -1016,25 +1064,42 @@
       }
 
       function renderTurnRows(turns) {
-        if (turns.length <= 10) {
+        if (turns.length <= 12) {
           return turns.map((t) => turnRow(t)).join("");
         }
-        // Show first 3, ellipsis, last 3
+        // Show first 5, ellipsis, last 3, and any compressed turns
         let rows = "";
-        for (let i = 0; i < 3; i++) rows += turnRow(turns[i]);
-        rows += `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);font-family:Inter,sans-serif">⋮ 共 ${turns.length} 轮（显示首尾各 3 轮）</td></tr>`;
+        const showIndices = new Set();
+        for (let i = 0; i < 5; i++) showIndices.add(i);
         for (let i = turns.length - 3; i < turns.length; i++)
+          showIndices.add(i);
+        // Always show compressed turns
+        turns.forEach((t, i) => {
+          if (t.compressed) showIndices.add(i);
+        });
+        const sorted = [...showIndices].sort((a, b) => a - b);
+        let lastShown = -1;
+        for (const i of sorted) {
+          if (i < 0 || i >= turns.length) continue;
+          if (lastShown >= 0 && i > lastShown + 1) {
+            rows += `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);font-family:Inter,sans-serif">⋮ 跳过 ${i - lastShown - 1} 轮</td></tr>`;
+          }
           rows += turnRow(turns[i]);
+          lastShown = i;
+        }
         return rows;
       }
 
       function turnRow(t) {
-        return `<tr>
-        <td>#${t.id}</td>
+        const compTag = t.compressed
+          ? ' <span title="上下文压缩后，缓存失效，重新写入" style="color:var(--accent-amber)">🗜️</span>'
+          : "";
+        return `<tr${t.compressed ? ' style="background:rgba(245,158,11,0.06)"' : ""}>
+        <td>#${t.id}${compTag}</td>
         <td>${fmtK(t.inputTokens)}</td>
         <td>${fmtK(t.outputTokens)}</td>
         <td class="cost-red">${fmt$(t.uncached)}</td>
-        <td class="cost-blue">${fmt$(t.cached)}</td>
+        <td class="cost-blue">${fmt$(t.cached)}${t.compressed ? ' <span style="font-size:0.65rem;color:var(--accent-amber)">(冷缓存)</span>' : ""}</td>
       </tr>`;
       }
 

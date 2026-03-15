@@ -16,6 +16,7 @@ import { UsageReportPanel } from './webviewPanel';
 import { WindowTracker } from './pulse';
 import { getQuotaGroup } from './modelGroups';
 import { calculateCost } from './cost';
+import { QuotaLogger } from './quotaLogger';
 
 // ─── Extension State ──────────────────────────────────────────────────────────
 // Each VS Code window runs its own extension instance, so module-level
@@ -24,6 +25,7 @@ import { calculateCost } from './cost';
 let statusBar: StatusBarManager;
 let usageStore: UsageStore;
 let windowTracker: WindowTracker;
+let quotaLogger: QuotaLogger;
 let pollingTimer: NodeJS.Timeout | undefined;
 let cachedLsInfo: LSInfo | null = null;
 let currentUsage: ContextUsage | null = null;
@@ -117,6 +119,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const agpConfig = vscode.workspace.getConfiguration('agp');
     const windowDurationHours = Math.max(1, agpConfig.get<number>('windowDurationHours', 5));
     windowTracker = new WindowTracker(context.globalState, windowDurationHours);
+    quotaLogger = new QuotaLogger(context.globalState);
 
     statusBar = new StatusBarManager(windowTracker);
     usageStore = new UsageStore(context.globalState);
@@ -205,9 +208,10 @@ export function deactivate(): void {
     }
     // A1: Cancel any in-flight RPC requests to prevent dangling network operations
     abortController.abort();
-    // AGP: Force-persist WindowTracker and UsageStore on deactivate
+    // AGP: Force-persist WindowTracker, UsageStore, and QuotaLogger on deactivate
     windowTracker?.persist(true);
     usageStore?.persist(true);
+    quotaLogger?.persist(true);
     log('Extension deactivated');
 }
 
@@ -580,6 +584,47 @@ async function pollContextUsage(): Promise<void> {
                             if (!isNaN(resetMs) && resetMs > Date.now()) {
                                 windowTracker.syncWithQuotaAPI(resetMs, group);
                             }
+
+                            // QuotaLogger: Record remainingFraction snapshot for credits analysis.
+                            // Pair fraction with token context from the current poll's usage data.
+                            if (cfg.remainingFraction !== undefined && quotaLogger) {
+                                const cacheRead = currentUsage?.lastModelUsage?.cacheReadTokens || 0;
+                                // Compute token deltas for this model from the current poll
+                                const baseline = previousWindowBaselines.get(trackedCascadeId || '');
+                                const deltaIn = currentUsage
+                                    ? currentUsage.contextUsed - (baseline?.totalInputTokens || 0)
+                                    : 0;
+                                const deltaOut = currentUsage
+                                    ? currentUsage.totalOutputTokens - (baseline?.totalOutputTokens || 0)
+                                    : 0;
+
+                                const obs = quotaLogger.recordSnapshot({
+                                    timestamp: Date.now(),
+                                    model: cfg.model,
+                                    quotaGroup: group,
+                                    remainingFraction: cfg.remainingFraction,
+                                    resetTime: cfg.resetTime,
+                                    cascadeId: trackedCascadeId || undefined,
+                                    deltaInputTokens: Math.max(0, deltaIn),
+                                    deltaOutputTokens: Math.max(0, deltaOut),
+                                    deltaCacheReadTokens: cacheRead,
+                                });
+
+                                if (obs) {
+                                    log(
+                                        `[QuotaLogger] Observation: ${cfg.model} ` +
+                                        `fraction ${obs.fractionBefore.toFixed(17)} → ${obs.fractionAfter.toFixed(17)} ` +
+                                        `(Δ=${obs.deltaFraction.toFixed(17)}) ` +
+                                        `tokens: in=${obs.deltaInputTokens} out=${obs.deltaOutputTokens} ` +
+                                        `cache=${obs.deltaCacheReadTokens}`
+                                    );
+                                } else {
+                                    log(
+                                        `[QuotaLogger] Snapshot: ${cfg.model} ` +
+                                        `fraction=${cfg.remainingFraction} (no delta)`
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -589,6 +634,7 @@ async function pollContextUsage(): Promise<void> {
         // AGP: Check window resets and persist
         windowTracker.checkWindowReset();
         windowTracker.persist();
+        quotaLogger.persist();
 
         UsageReportPanel.refreshIfVisible();
 

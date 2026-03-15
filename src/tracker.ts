@@ -1,6 +1,7 @@
 import * as https from 'https';
 import * as http from 'http';
 import { LSInfo } from './discovery';
+import { getModelPricing } from './cost';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,64 @@ export interface CheckpointModelUsage {
     outputTokens: number;
 }
 
+// ─── Conversation Message Types ──────────────────────────────────────────────
+
+/** A single message in a conversation export. */
+export interface ConversationMessage {
+    stepIndex: number;
+    type: 'user' | 'assistant' | 'tool_call' | 'tool_result' | 'checkpoint';
+    content: string;
+    thinking?: string;
+    toolCalls?: Array<{ name: string; args: string }>;
+    model: string;
+    timestamp?: string;
+    tokens?: {
+        input: number;
+        output: number;
+        cacheRead: number;
+        responseOutput: number;
+    };
+}
+
+/** Full conversation export structure. */
+export interface ConversationExport {
+    exportedAt: string;
+    cascadeId: string;
+    title: string;
+    model: string;
+    modelDisplayName: string;
+    status: string;
+    createdTime: string;
+    lastModifiedTime: string;
+    stepCount: number;
+    messages: ConversationMessage[];
+    usage: {
+        totalInputTokens: number;
+        totalOutputTokens: number;
+        totalCacheReadTokens: number;
+        totalToolCallOutputTokens: number;
+        contextUsed: number;
+        estimatedCost: number;
+        sendCount: number;
+        responseCount: number;
+        retryCount: number;
+        imageGenStepCount: number;
+        compressionDetected: boolean;
+        isEstimated: boolean;
+    };
+    costBreakdown: Array<{
+        model: string;
+        displayName: string;
+        inputTokens: number;
+        outputTokens: number;
+        cost: number;
+    }>;
+    quota?: {
+        remainingFraction: number;
+        resetTime: string;
+    };
+}
+
 export interface TokenUsageResult {
     /** Actual input tokens from the last checkpoint (if available) */
     inputTokens: number;
@@ -56,6 +115,8 @@ export interface TokenUsageResult {
     stepDetails: StepTokenInfo[];
     /** Last checkpoint's modelUsage (if available) */
     lastModelUsage: ModelUsageInfo | null;
+    /** Conversation messages — only populated when collectMessages=true. */
+    messages: ConversationMessage[];
     /** Estimated tokens added since the last checkpoint (for debugging/display) */
     estimatedDeltaSinceCheckpoint: number;
     /** Number of image generation steps detected */
@@ -439,7 +500,11 @@ export function normalizeUri(uri: string): string {
  *  5000 tokens avoids noise from small fluctuations (e.g., cache vs non-cache runs). */
 const COMPRESSION_MIN_DROP = 5000;
 
-export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageResult {
+export function processSteps(
+    steps: Array<Record<string, unknown>>,
+    options?: { collectMessages?: boolean }
+): TokenUsageResult {
+    const collectMessages = options?.collectMessages ?? false;
     let toolOutputTokens = 0;
     let model = '';
     const stepDetails: StepTokenInfo[] = [];
@@ -447,6 +512,7 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
     let imageGenStepCount = 0;
     /** Track step indices already counted as image-gen to prevent double-counting */
     const imageGenStepIndices = new Set<number>();
+    const messages: ConversationMessage[] = [];
 
     // AGP: Send/response/retry counters
     let sendCount = 0;
@@ -496,6 +562,16 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
                 ? estimateTokensFromText(userText)
                 : USER_INPUT_OVERHEAD;
             estimationOverhead += contentTokens;
+
+            // Collect user message for export
+            if (collectMessages && userText) {
+                messages.push({
+                    stepIndex: globalStepIdx,
+                    type: 'user',
+                    content: userText,
+                    model: '',  // Filled later
+                });
+            }
         }
 
         // Count planner response steps — use actual text content for estimation
@@ -507,9 +583,17 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
             // toolCalls arguments also consume context
             let toolCallsText = '';
             const toolCalls = pr?.toolCalls as Array<Record<string, unknown>> | undefined;
+            const parsedToolCalls: Array<{ name: string; args: string }> = [];
             if (toolCalls) {
                 for (const tc of toolCalls) {
-                    toolCallsText += (tc.argumentsJson as string) || '';
+                    const argsJson = (tc.argumentsJson as string) || '';
+                    toolCallsText += argsJson;
+                    if (collectMessages) {
+                        parsedToolCalls.push({
+                            name: (tc.name as string) || (tc.toolName as string) || 'unknown',
+                            args: argsJson,
+                        });
+                    }
                 }
             }
             const totalText = responseText + thinkingText + toolCallsText;
@@ -519,6 +603,18 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
                 ? estimateTokensFromText(totalText)
                 : PLANNER_RESPONSE_ESTIMATE;
             estimationOverhead += contentTokens;
+
+            // Collect assistant message for export
+            if (collectMessages && (responseText || thinkingText || parsedToolCalls.length > 0)) {
+                messages.push({
+                    stepIndex: globalStepIdx,
+                    type: 'assistant',
+                    content: responseText,
+                    thinking: thinkingText || undefined,
+                    toolCalls: parsedToolCalls.length > 0 ? parsedToolCalls : undefined,
+                    model: '',  // Filled later
+                });
+            }
         }
 
         // Detect image generation steps (by stepType)
@@ -606,6 +702,23 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
                         seenCheckpoints.add(cpKey);
                         pendingCp = { inputTokens, outputTokens };
                     }
+
+                    // Collect checkpoint message for export
+                    if (collectMessages) {
+                        messages.push({
+                            stepIndex: globalStepIdx,
+                            type: 'checkpoint',
+                            content: '',
+                            model: muModel,
+                            tokens: {
+                                input: inputTokens,
+                                output: outputTokens,
+                                cacheRead: cacheReadTokens,
+                                responseOutput: responseOutputTokens,
+                            },
+                        });
+                    }
+
                     // Reset per-checkpoint counters
                     estimationOverhead = 0;
                     outputTokensSinceCheckpoint = 0;
@@ -693,6 +806,13 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
     // outputTokens = model's response for the current turn — also occupies the context window.
     // C2 fix: Both input AND output tokens count toward context window occupation.
     // Post-compression, inputTokens naturally drops, giving correct lower values.
+    // Back-fill model on collected messages (model is resolved at end of loop)
+    if (collectMessages && model) {
+        for (const msg of messages) {
+            if (!msg.model) { msg.model = model; }
+        }
+    }
+
     if (lastModelUsage && lastModelUsage.inputTokens > 0) {
         return {
             inputTokens: lastModelUsage.inputTokens,
@@ -703,6 +823,7 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
             model,
             stepDetails,
             lastModelUsage,
+            messages,
             estimatedDeltaSinceCheckpoint: estimatedDelta,
             imageGenStepCount,
             hasGaps: false,  // Set by getTrajectoryTokenUsage caller
@@ -735,6 +856,7 @@ export function processSteps(steps: Array<Record<string, unknown>>): TokenUsageR
         model,
         stepDetails,
         lastModelUsage: null,
+        messages,
         estimatedDeltaSinceCheckpoint: estimatedTotal,
         imageGenStepCount,
         hasGaps: false,  // Set by getTrajectoryTokenUsage caller
@@ -954,5 +1076,98 @@ export async function getContextUsage(
         sendCount: result.sendCount,
         responseCount: result.responseCount,
         retryCount: result.retryCount,
+    };
+}
+
+// ─── Conversation Export ──────────────────────────────────────────────────────
+
+/**
+ * Export a full conversation with messages and metadata.
+ * Uses collectMessages=true to capture conversation content alongside token data.
+ */
+export async function getConversationExport(
+    ls: LSInfo,
+    trajectory: TrajectorySummary,
+    quota?: { remainingFraction: number; resetTime: string },
+    signal?: AbortSignal
+): Promise<ConversationExport> {
+    const BATCH_SIZE = 50;
+    const MAX_CONCURRENT_BATCHES = 5;
+    const maxSteps = Math.max(trajectory.stepCount, 0);
+
+    // Fetch all steps (same batch logic as getTrajectoryTokenUsage)
+    const allSteps: Array<Record<string, unknown>> = [];
+    const batchRanges: Array<{ start: number; end: number }> = [];
+    for (let start = 0; start < maxSteps; start += BATCH_SIZE) {
+        batchRanges.push({ start, end: Math.min(start + BATCH_SIZE, maxSteps) });
+    }
+
+    for (let groupStart = 0; groupStart < batchRanges.length; groupStart += MAX_CONCURRENT_BATCHES) {
+        const group = batchRanges.slice(groupStart, groupStart + MAX_CONCURRENT_BATCHES);
+        const groupResults = await Promise.allSettled(
+            group.map(({ start, end }) =>
+                rpcCall(ls, 'GetCascadeTrajectorySteps', {
+                    cascadeId: trajectory.cascadeId,
+                    startIndex: start,
+                    endIndex: end
+                }, 30000, signal)
+            )
+        );
+        for (const result of groupResults) {
+            if (result.status === 'fulfilled') {
+                const steps = result.value.steps as Array<Record<string, unknown>> | undefined;
+                if (steps && steps.length > 0) {
+                    allSteps.push(...steps);
+                }
+            }
+        }
+    }
+
+    // Process steps WITH message collection enabled
+    const result = processSteps(allSteps, { collectMessages: true });
+    const effectiveModel = result.model || trajectory.requestedModel || trajectory.generatorModel;
+
+    // Compute segmented cost from checkpoint data
+    const costSegments = result.checkpointUsages.map(cp => {
+        const pricing = getModelPricing(cp.model);
+        const cost = (cp.inputTokens * pricing.inputPerMillion +
+            cp.outputTokens * pricing.outputPerMillion) / 1_000_000;
+        return {
+            model: cp.model,
+            displayName: pricing.displayName,
+            inputTokens: cp.inputTokens,
+            outputTokens: cp.outputTokens,
+            cost,
+        };
+    });
+    const totalCost = costSegments.reduce((sum, s) => sum + s.cost, 0);
+
+    return {
+        exportedAt: new Date().toISOString(),
+        cascadeId: trajectory.cascadeId,
+        title: trajectory.summary,
+        model: effectiveModel,
+        modelDisplayName: getModelDisplayName(effectiveModel),
+        status: trajectory.status,
+        createdTime: trajectory.createdTime,
+        lastModifiedTime: trajectory.lastModifiedTime,
+        stepCount: trajectory.stepCount,
+        messages: result.messages,
+        usage: {
+            totalInputTokens: result.inputTokens,
+            totalOutputTokens: result.totalOutputTokens,
+            totalCacheReadTokens: result.lastModelUsage?.cacheReadTokens || 0,
+            totalToolCallOutputTokens: result.totalToolCallOutputTokens,
+            contextUsed: result.contextUsed,
+            estimatedCost: totalCost,
+            sendCount: result.sendCount,
+            responseCount: result.responseCount,
+            retryCount: result.retryCount,
+            imageGenStepCount: result.imageGenStepCount,
+            compressionDetected: result.checkpointCompressionDetected,
+            isEstimated: result.isEstimated,
+        },
+        costBreakdown: costSegments,
+        quota,
     };
 }

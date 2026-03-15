@@ -65,6 +65,7 @@
   },
   "scripts": {
     "monitor": "npx tsx tools/monitor.ts",
+    "export": "npx tsx tools/monitor.ts --export",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "vitest run",

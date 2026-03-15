@@ -29,3 +29,6 @@ prd/
 
 # deploy.bat
 deploy.bat
+
+# agp folder
+.agp/

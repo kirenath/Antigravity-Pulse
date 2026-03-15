@@ -4,21 +4,26 @@
 // Records remainingFraction snapshots to workspace-local .agp/ folder.
 //
 // Usage:
-//   npx tsx tools/monitor.ts [workspace-path]
-//   npm run monitor [-- workspace-path]
+//   npx tsx tools/monitor.ts [workspace-path]       — monitor mode
+//   npx tsx tools/monitor.ts --export [workspace]   — export a conversation
 //
-// Data is saved to <workspace>/.agp/quota_snapshots.jsonl
+// Data is saved to <workspace>/.agp/
 // ─────────────────────────────────────────────────────────────────────────────
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as readline from 'readline';
 import { discoverLanguageServer, LSInfo } from '../src/discovery';
 import {
     fetchModelConfigs,
     getAllTrajectories,
     getTrajectoryTokenUsage,
+    getConversationExport,
+    getModelDisplayName,
     processSteps,
     ModelConfig,
+    TrajectorySummary,
+    ConversationExport,
 } from '../src/tracker';
 import { getQuotaGroup, QuotaGroup } from '../src/modelGroups';
 
@@ -68,7 +73,9 @@ let running = true;
 // ─── Workspace Resolution ────────────────────────────────────────────────────
 
 function resolveWorkspace(): string {
-    const arg = process.argv[2];
+    // Skip flags like --export when looking for workspace path
+    const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
+    const arg = args[0];
     if (arg) {
         const resolved = path.resolve(arg);
         if (!fs.existsSync(resolved)) {
@@ -318,10 +325,159 @@ function updatePrecisionReport(agpDir: string, newFractions: number[]): void {
     });
 }
 
+// ─── Interactive Prompt ──────────────────────────────────────────────────────
+
+function prompt(question: string): Promise<string> {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    return new Promise(resolve => {
+        rl.question(question, answer => {
+            rl.close();
+            resolve(answer.trim());
+        });
+    });
+}
+
+// ─── Export Mode ─────────────────────────────────────────────────────────────
+
+async function exportConversation(workspace: string): Promise<void> {
+    console.log('');
+    console.log('  ┌──────────────────────────────────────────┐');
+    console.log('  │  AGP Export — Conversation Exporter       │');
+    console.log('  └──────────────────────────────────────────┘');
+    console.log('');
+    console.log(`  Workspace: ${workspace}`);
+    console.log('');
+
+    // 1. Discover LS
+    log('Discovering Antigravity LS...');
+    const workspaceUri = `file:///${workspace.replace(/\\/g, '/')}`;
+    let ls: LSInfo | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+            ls = await discoverLanguageServer(workspaceUri);
+            if (ls) break;
+        } catch { /* retry */ }
+        log('LS not found, retrying...');
+        await sleep(2000);
+    }
+    if (!ls) {
+        console.error('❌ Could not discover Antigravity LS. Is Antigravity running?');
+        process.exit(1);
+    }
+    log(`LS found: port=${ls.port}, tls=${ls.useTls}, pid=${ls.pid}`);
+
+    // 2. Fetch all conversations
+    log('Fetching conversation list...');
+    const trajectories = await getAllTrajectories(ls);
+    if (trajectories.length === 0) {
+        console.log('  No conversations found.');
+        process.exit(0);
+    }
+
+    // 3. Fetch quota info for context
+    let quotaInfo: { remainingFraction: number; resetTime: string } | undefined;
+    try {
+        const configs = await fetchModelConfigs(ls);
+        const withQuota = configs.find(c => c.remainingFraction !== undefined);
+        if (withQuota && withQuota.remainingFraction !== undefined) {
+            quotaInfo = {
+                remainingFraction: withQuota.remainingFraction,
+                resetTime: withQuota.resetTime || '',
+            };
+        }
+    } catch { /* ok */ }
+
+    // 4. Display conversation list
+    console.log('');
+    console.log('  ┌──────────────────────────────────────────────────────────────┐');
+    console.log('  │  Available Conversations                                     │');
+    console.log('  └──────────────────────────────────────────────────────────────┘');
+    console.log('');
+
+    for (let i = 0; i < trajectories.length; i++) {
+        const t = trajectories[i];
+        const model = getModelDisplayName(t.requestedModel || t.generatorModel).split(' / ')[0];
+        const statusIcon = t.status === 'CASCADE_RUN_STATUS_RUNNING' ? '🟢' :
+                          t.status === 'CASCADE_RUN_STATUS_FINISHED' ? '⚪' : '🔴';
+        const time = t.lastModifiedTime
+            ? new Date(t.lastModifiedTime).toLocaleString()
+            : 'unknown';
+        const title = (t.summary || t.cascadeId).substring(0, 50);
+        console.log(
+            `  ${String(i + 1).padStart(3)}. ${statusIcon} [${model.padEnd(20)}] ` +
+            `${t.stepCount.toString().padStart(4)} steps | ${time}`
+        );
+        console.log(`       ${title}`);
+    }
+
+    console.log('');
+
+    // 5. User picks a conversation
+    const input = await prompt('  Select conversation number (or q to quit): ');
+    if (input.toLowerCase() === 'q' || !input) {
+        console.log('  Cancelled.');
+        process.exit(0);
+    }
+
+    const idx = parseInt(input, 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= trajectories.length) {
+        console.error(`  ❌ Invalid selection: ${input}`);
+        process.exit(1);
+    }
+
+    const selected = trajectories[idx];
+    const selectedTitle = (selected.summary || selected.cascadeId).substring(0, 40);
+    log(`Exporting: "${selectedTitle}" (${selected.stepCount} steps)...`);
+
+    // 6. Export
+    const exported = await getConversationExport(ls, selected, quotaInfo);
+
+    // 7. Save to file
+    const agpDir = ensureAgpDir(workspace);
+    const exportsDir = path.join(agpDir, 'exports');
+    if (!fs.existsSync(exportsDir)) {
+        fs.mkdirSync(exportsDir, { recursive: true });
+    }
+
+    const safeTitle = (selected.summary || 'conversation')
+        .replace(/[^a-zA-Z0-9\u4e00-\u9fff\-_]/g, '_')
+        .substring(0, 50);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+    const filename = `${safeTitle}_${timestamp}.json`;
+    const filepath = path.join(exportsDir, filename);
+
+    writeJson(filepath, exported);
+
+    // 8. Summary
+    console.log('');
+    console.log('  ┌──────────────────────────────────────────┐');
+    console.log('  │  Export Complete ✅                        │');
+    console.log('  └──────────────────────────────────────────┘');
+    console.log('');
+    console.log(`  📄 File: ${filepath}`);
+    console.log(`  💬 Messages: ${exported.messages.length}`);
+    console.log(`  📊 Steps: ${exported.stepCount}`);
+    console.log(`  🤖 Model: ${exported.modelDisplayName}`);
+    console.log(`  📤 Sends: ${exported.usage.sendCount}  📥 Responses: ${exported.usage.responseCount}  🔄 Retries: ${exported.usage.retryCount}`);
+    console.log(`  🔢 Input: ${(exported.usage.totalInputTokens / 1000).toFixed(1)}k  Output: ${(exported.usage.totalOutputTokens / 1000).toFixed(1)}k`);
+    console.log(`  💰 Est. Cost: $${exported.usage.estimatedCost.toFixed(4)}`);
+    if (exported.quota) {
+        console.log(`  📉 Quota Remaining: ${(exported.quota.remainingFraction * 100).toFixed(2)}%`);
+    }
+    const sizeKB = (Buffer.byteLength(JSON.stringify(exported, null, 2)) / 1024).toFixed(1);
+    console.log(`  📦 File size: ${sizeKB} KB`);
+    console.log('');
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+    const isExportMode = process.argv.includes('--export');
     const workspace = resolveWorkspace();
+
+    if (isExportMode) {
+        return exportConversation(workspace);
+    }
 
     console.log('');
     console.log('  ┌─────────────────────────────────────────┐');

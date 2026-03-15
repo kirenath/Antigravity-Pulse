@@ -64,6 +64,7 @@
     }
   },
   "scripts": {
+    "monitor": "npx tsx tools/monitor.ts",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "vitest run",
@@ -75,6 +76,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.0",
     "vitest": "^4.0.18"
   }

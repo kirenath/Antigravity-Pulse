@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "../out-tools",
+    "module": "commonjs",
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": [
+    "./**/*",
+    "../src/discovery.ts",
+    "../src/tracker.ts",
+    "../src/modelGroups.ts",
+    "../src/cost.ts"
+  ],
+  "exclude": ["../node_modules", "../out", "../reference"]
+}

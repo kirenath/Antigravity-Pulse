@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AGP Cost Calculator — 对话成本估算器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-primary: #0a0a0f;
+        --bg-secondary: #12121a;
+        --bg-card: #1a1a26;
+        --bg-card-hover: #22223a;
+        --border: #2a2a3e;
+        --border-glow: #6366f1;
+        --text-primary: #e8e8ef;
+        --text-secondary: #9899ac;
+        --text-dim: #666680;
+        --accent-purple: #8b5cf6;
+        --accent-blue: #3b82f6;
+        --accent-cyan: #06b6d4;
+        --accent-green: #10b981;
+        --accent-amber: #f59e0b;
+        --accent-red: #ef4444;
+        --accent-pink: #ec4899;
+        --gradient-hero: linear-gradient(
+          135deg,
+          #6366f1 0%,
+          #8b5cf6 30%,
+          #ec4899 100%
+        );
+        --gradient-uncached: linear-gradient(135deg, #ef4444, #f97316);
+        --gradient-cached: linear-gradient(135deg, #3b82f6, #06b6d4);
+        --gradient-agp: linear-gradient(135deg, #10b981, #34d399);
+        --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5);
+        --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
+        --radius: 16px;
+        --radius-sm: 10px;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* Ambient background */
+      body::before {
+        content: "";
+        position: fixed;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background:
+          radial-gradient(
+            circle at 30% 20%,
+            rgba(99, 102, 241, 0.06) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 70% 80%,
+            rgba(236, 72, 153, 0.04) 0%,
+            transparent 50%
+          );
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 40px 24px;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ── Header ── */
+      header {
+        text-align: center;
+        margin-bottom: 48px;
+      }
+      header h1 {
+        font-size: 2.4rem;
+        font-weight: 800;
+        background: var(--gradient-hero);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1.2;
+        margin-bottom: 12px;
+      }
+      header p {
+        color: var(--text-secondary);
+        font-size: 1.05rem;
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+      header .badge {
+        display: inline-block;
+        margin-top: 14px;
+        padding: 5px 14px;
+        background: rgba(99, 102, 241, 0.12);
+        border: 1px solid rgba(99, 102, 241, 0.25);
+        border-radius: 20px;
+        font-size: 0.8rem;
+        color: var(--accent-purple);
+        font-weight: 500;
+      }
+
+      /* ── Drop Zone ── */
+      .dropzone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 64px 32px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: var(--bg-secondary);
+        position: relative;
+        overflow: hidden;
+      }
+      .dropzone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          circle at center,
+          rgba(99, 102, 241, 0.04) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .dropzone:hover,
+      .dropzone.drag-over {
+        border-color: var(--border-glow);
+        background: var(--bg-card);
+        box-shadow: var(--shadow-glow);
+      }
+      .dropzone.drag-over {
+        transform: scale(1.01);
+      }
+      .dropzone-icon {
+        font-size: 3.5rem;
+        margin-bottom: 16px;
+        display: block;
+        filter: grayscale(0.3);
+      }
+      .dropzone h3 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+      }
+      .dropzone p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+      .dropzone .hint {
+        margin-top: 16px;
+        font-size: 0.78rem;
+        color: var(--text-dim);
+      }
+      #fileInput {
+        display: none;
+      }
+
+      /* ── Multi-file list ── */
+      .file-list {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+      }
+      .file-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 8px;
+        font-size: 0.78rem;
+        color: var(--accent-purple);
+        font-family: "JetBrains Mono", monospace;
+      }
+      .file-tag .remove {
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+      }
+      .file-tag .remove:hover {
+        opacity: 1;
+      }
+
+      /* ── Results ── */
+      #results {
+        display: none;
+        margin-top: 40px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
+      }
+      @media (max-width: 700px) {
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .summary-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .summary-card:hover {
+        border-color: var(--border-glow);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-glow);
+      }
+      .summary-card .label {
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+      }
+      .summary-card .cost {
+        font-size: 2.2rem;
+        font-weight: 800;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .summary-card .sub {
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        margin-top: 6px;
+      }
+      .summary-card.uncached .cost {
+        color: var(--accent-red);
+      }
+      .summary-card.cached .cost {
+        color: var(--accent-blue);
+      }
+      .summary-card.agp .cost {
+        color: var(--accent-green);
+      }
+      .summary-card::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+      }
+      .summary-card.uncached::after {
+        background: var(--gradient-uncached);
+      }
+      .summary-card.cached::after {
+        background: var(--gradient-cached);
+      }
+      .summary-card.agp::after {
+        background: var(--gradient-agp);
+      }
+
+      /* ── Comparison Bar ── */
+      .comparison-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 28px;
+        margin-bottom: 24px;
+      }
+      .comparison-section h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: var(--text-secondary);
+      }
+      .bar-group {
+        margin-bottom: 18px;
+      }
+      .bar-group:last-child {
+        margin-bottom: 0;
+      }
+      .bar-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+      }
+      .bar-label span:first-child {
+        font-weight: 500;
+      }
+      .bar-label span:last-child {
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 600;
+      }
+      .bar-track {
+        height: 28px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+      }
+      .bar-fill {
+        height: 100%;
+        border-radius: 8px;
+        transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        display: flex;
+        align-items: center;
+        padding-left: 10px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        min-width: 40px;
+      }
+      .bar-fill.uncached {
+        background: var(--gradient-uncached);
+      }
+      .bar-fill.cached {
+        background: var(--gradient-cached);
+      }
+      .bar-fill.agp {
+        background: var(--gradient-agp);
+      }
+
+      /* ── Detail Tables ── */
+      .detail-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 28px;
+        margin-bottom: 24px;
+      }
+      .detail-section h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--text-secondary);
+      }
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .meta-item {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+      }
+      .meta-item .meta-label {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .meta-item .meta-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      /* ── Turn table ──*/
+      .turn-table-wrap {
+        overflow-x: auto;
+        margin-top: 16px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+      th {
+        text-align: left;
+        padding: 10px 12px;
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.78rem;
+        white-space: nowrap;
+      }
+      tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      td.cost-red {
+        color: var(--accent-red);
+      }
+      td.cost-blue {
+        color: var(--accent-blue);
+      }
+      td.cost-green {
+        color: var(--accent-green);
+      }
+
+      .savings-banner {
+        background: linear-gradient(
+          135deg,
+          rgba(16, 185, 129, 0.1),
+          rgba(52, 211, 153, 0.05)
+        );
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: var(--radius);
+        padding: 24px 28px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .savings-banner .icon {
+        font-size: 2.5rem;
+      }
+      .savings-banner .text h4 {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--accent-green);
+        margin-bottom: 4px;
+      }
+      .savings-banner .text p {
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+
+      /* ── Per-conversation accordion ── */
+      .convo-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 16px;
+        overflow: hidden;
+      }
+      .convo-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 24px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .convo-header:hover {
+        background: var(--bg-card-hover);
+      }
+      .convo-header .title {
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+      .convo-header .costs {
+        display: flex;
+        gap: 16px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.82rem;
+      }
+      .convo-body {
+        display: none;
+        padding: 0 24px 24px;
+        border-top: 1px solid var(--border);
+      }
+      .convo-body.open {
+        display: block;
+      }
+      .convo-header .arrow {
+        transition: transform 0.2s;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-left: 12px;
+      }
+      .convo-header.open .arrow {
+        transform: rotate(180deg);
+      }
+
+      /* footer */
+      footer {
+        text-align: center;
+        margin-top: 48px;
+        padding: 24px;
+        color: var(--text-dim);
+        font-size: 0.78rem;
+        line-height: 1.7;
+      }
+      footer a {
+        color: var(--accent-purple);
+        text-decoration: none;
+      }
+      footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>💸 AGP Cost Calculator</h1>
+        <p>
+          上传 AGP 导出的对话 JSON，计算等效 API 成本。<br />基于用户消息切分对话轮次，对比有缓存
+          / 无缓存 / AGP 估算三种计价方式。
+        </p>
+        <span class="badge">🔒 完全本地计算 · 不上传任何数据</span>
+      </header>
+
+      <div class="dropzone" id="dropzone">
+        <span class="dropzone-icon">📂</span>
+        <h3>拖放 JSON 文件到这里</h3>
+        <p>或点击选择文件（支持多个文件批量分析）</p>
+        <p class="hint">支持 AGP 导出的 ConversationExport JSON 格式</p>
+        <input type="file" id="fileInput" accept=".json" multiple />
+        <div class="file-list" id="fileList"></div>
+      </div>
+
+      <div id="results"></div>
+
+      <footer>
+        <p>
+          AGP Cost Calculator by <a href="#">AG Pulse</a><br />
+          价格来源：Anthropic / Google / OpenAI 官方 API 定价（2026 年 3 月）<br />
+          所有计算基于估算的 token 数，仅供参考
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      // ── Pricing Data ──
+      const PRICING = {
+        MODEL_PLACEHOLDER_M26: {
+          name: "Claude Opus 4.6",
+          in: 5.0,
+          out: 25.0,
+          cacheWrite: 6.25,
+          cacheRead: 0.5,
+        },
+        MODEL_PLACEHOLDER_M35: {
+          name: "Claude Sonnet 4.6",
+          in: 3.0,
+          out: 15.0,
+          cacheWrite: 3.75,
+          cacheRead: 0.3,
+        },
+        MODEL_PLACEHOLDER_M37: {
+          name: "Gemini 3.1 Pro (H)",
+          in: 1.25,
+          out: 10.0,
+          cacheWrite: 1.5625,
+          cacheRead: 0.3125,
+        },
+        MODEL_PLACEHOLDER_M36: {
+          name: "Gemini 3.1 Pro (L)",
+          in: 1.25,
+          out: 10.0,
+          cacheWrite: 1.5625,
+          cacheRead: 0.3125,
+        },
+        MODEL_PLACEHOLDER_M18: {
+          name: "Gemini 3 Flash",
+          in: 0.15,
+          out: 0.6,
+          cacheWrite: 0.1875,
+          cacheRead: 0.0375,
+        },
+        MODEL_PLACEHOLDER_M47: {
+          name: "Gemini 3 Flash",
+          in: 0.15,
+          out: 0.6,
+          cacheWrite: 0.1875,
+          cacheRead: 0.0375,
+        },
+        MODEL_OPENAI_GPT_OSS_120B_MEDIUM: {
+          name: "GPT-OSS 120B",
+          in: 1.25,
+          out: 10.0,
+          cacheWrite: 1.25,
+          cacheRead: 0.625,
+        },
+        DEFAULT: {
+          name: "Unknown Model",
+          in: 1.25,
+          out: 10.0,
+          cacheWrite: 1.5625,
+          cacheRead: 0.3125,
+        },
+      };
+
+      function getPricing(modelId) {
+        return PRICING[modelId] || PRICING.DEFAULT;
+      }
+
+      // ── Token Estimation ──
+      function estimateTokens(text) {
+        if (!text) return 0;
+        let ascii = 0,
+          nonAscii = 0;
+        for (let i = 0; i < text.length; i++) {
+          text.charCodeAt(i) < 128 ? ascii++ : nonAscii++;
+        }
+        return Math.ceil(ascii / 4 + nonAscii / 1.5);
+      }
+
+      // ── Core Calculation ──
+      function analyzeConversation(data) {
+        const pricing = getPricing(data.model);
+        const BASE_OVERHEAD = 1500;
+
+        let contextTokens = BASE_OVERHEAD;
+        let turnCount = 0;
+        let processing = false;
+        let turnInput = 0,
+          turnOutput = 0,
+          newCtx = 0;
+        const turns = [];
+
+        for (const msg of data.messages || []) {
+          if (msg.type === "checkpoint") continue;
+
+          if (msg.type === "user") {
+            const tokens = estimateTokens(msg.content);
+            if (processing) {
+              turns.push(
+                makeTurn(
+                  turnCount,
+                  turnInput,
+                  turnOutput,
+                  contextTokens,
+                  newCtx,
+                  pricing,
+                ),
+              );
+              contextTokens += turnOutput;
+            }
+            turnCount++;
+            processing = true;
+            turnInput = contextTokens + tokens;
+            newCtx = tokens;
+            turnOutput = 0;
+            contextTokens += tokens;
+          } else if (msg.type === "assistant") {
+            let out = estimateTokens(msg.content || "");
+            if (msg.toolCalls) {
+              for (const tc of msg.toolCalls) {
+                out += estimateTokens((tc.name || "") + (tc.args || ""));
+              }
+            }
+            if (msg.thinking) out += estimateTokens(msg.thinking);
+            turnOutput += out;
+            newCtx += out;
+          } else if (msg.type === "tool_result" || msg.type === "tool_call") {
+            const t = estimateTokens(msg.content || "");
+            contextTokens += t;
+            newCtx += t;
+          }
+        }
+        if (processing) {
+          turns.push(
+            makeTurn(
+              turnCount,
+              turnInput,
+              turnOutput,
+              contextTokens,
+              newCtx,
+              pricing,
+            ),
+          );
+          contextTokens += turnOutput;
+        }
+
+        let totalUncached = 0,
+          totalCached = 0;
+        for (const t of turns) {
+          totalUncached += t.uncached;
+          totalCached += t.cached;
+        }
+
+        // AGP checkpoint estimate
+        const agpEstimate = data.usage?.estimatedCost || 0;
+
+        return {
+          title: data.title || data.cascadeId || "Untitled",
+          model: data.model,
+          modelName: pricing.name,
+          turnCount,
+          finalContext: contextTokens,
+          totalUncached,
+          totalCached,
+          agpEstimate,
+          turns,
+          usage: data.usage || {},
+          createdTime: data.createdTime,
+          lastModifiedTime: data.lastModifiedTime,
+        };
+      }
+
+      function makeTurn(
+        id,
+        inputToks,
+        outputToks,
+        historySize,
+        newToks,
+        pricing,
+      ) {
+        const outCost = (outputToks / 1e6) * pricing.out;
+        const uncachedIn = (inputToks / 1e6) * pricing.in;
+        let cachedIn;
+        if (id === 1) {
+          cachedIn = (inputToks / 1e6) * pricing.cacheWrite;
+        } else {
+          const readPart = Math.max(0, historySize - newToks);
+          cachedIn =
+            (readPart / 1e6) * pricing.cacheRead +
+            (newToks / 1e6) * pricing.cacheWrite;
+        }
+        return {
+          id,
+          inputTokens: inputToks,
+          outputTokens: outputToks,
+          uncached: uncachedIn + outCost,
+          cached: cachedIn + outCost,
+        };
+      }
+
+      // ── Formatting ──
+      function fmt$(n) {
+        if (n < 0.01 && n > 0) return "<$0.01";
+        return "$" + n.toFixed(2);
+      }
+      function fmtK(n) {
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + "k";
+        return String(Math.round(n));
+      }
+
+      // ── Rendering ──
+      function renderResults(analyses) {
+        const el = document.getElementById("results");
+        el.style.display = "block";
+
+        // Aggregate totals
+        let sumUncached = 0,
+          sumCached = 0,
+          sumAgp = 0,
+          sumTurns = 0;
+        for (const a of analyses) {
+          sumUncached += a.totalUncached;
+          sumCached += a.totalCached;
+          sumAgp += a.agpEstimate;
+          sumTurns += a.turnCount;
+        }
+
+        const savings = sumUncached - sumCached;
+        const savingsNoCache = sumUncached - sumAgp;
+        const maxCost = Math.max(sumUncached, sumCached, sumAgp, 1);
+
+        let html = "";
+
+        // Savings banner
+        html += `
+        <div class="savings-banner">
+          <div class="icon">🤯</div>
+          <div class="text">
+            <h4>相比无缓存 API，你节省了 ${fmt$(savingsNoCache)}</h4>
+            <p>${analyses.length} 段对话 · ${sumTurns} 轮交互 · 如果直接调无缓存 API（如低质量中转站），等效花费 <strong>${fmt$(sumUncached)}</strong></p>
+          </div>
+        </div>
+      `;
+
+        // Summary cards
+        html += `
+        <div class="summary-grid">
+          <div class="summary-card uncached">
+            <div class="label">💥 无缓存 API</div>
+            <div class="cost">${fmt$(sumUncached)}</div>
+            <div class="sub">如中转站 / 随机轮询 Key</div>
+          </div>
+          <div class="summary-card cached">
+            <div class="label">✨ 有缓存 API</div>
+            <div class="cost">${fmt$(sumCached)}</div>
+            <div class="sub">如官方 API + Prompt Cache</div>
+          </div>
+          <div class="summary-card agp">
+            <div class="label">📝 AGP 估算</div>
+            <div class="cost">${fmt$(sumAgp)}</div>
+            <div class="sub">基于 Checkpoint 快照</div>
+          </div>
+        </div>
+      `;
+
+        // Visual comparison bars
+        html += `
+        <div class="comparison-section">
+          <h3>📊 成本对比（可视化）</h3>
+          <div class="bar-group">
+            <div class="bar-label">
+              <span>💥 无缓存 API</span>
+              <span style="color:var(--accent-red)">${fmt$(sumUncached)}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill uncached" style="width:${((sumUncached / maxCost) * 100).toFixed(1)}%">${((sumUncached / maxCost) * 100).toFixed(0)}%</div>
+            </div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label">
+              <span>✨ 有缓存 API</span>
+              <span style="color:var(--accent-blue)">${fmt$(sumCached)}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill cached" style="width:${((sumCached / maxCost) * 100).toFixed(1)}%">${((sumCached / maxCost) * 100).toFixed(0)}%</div>
+            </div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-label">
+              <span>📝 AGP Checkpoint 估算</span>
+              <span style="color:var(--accent-green)">${fmt$(sumAgp)}</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill agp" style="width:${Math.max((sumAgp / maxCost) * 100, 2).toFixed(1)}%">${((sumAgp / maxCost) * 100).toFixed(0)}%</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+        // Per-conversation details
+        for (let idx = 0; idx < analyses.length; idx++) {
+          const a = analyses[idx];
+          const convoId = "convo-" + idx;
+          html += `
+          <div class="convo-section">
+            <div class="convo-header" onclick="toggleConvo('${convoId}', this)">
+              <span class="title">💬 ${escHtml(a.title)}</span>
+              <div style="display:flex;align-items:center">
+                <div class="costs">
+                  <span style="color:var(--accent-red)">${fmt$(a.totalUncached)}</span>
+                  <span style="color:var(--accent-blue)">${fmt$(a.totalCached)}</span>
+                  <span style="color:var(--accent-green)">${fmt$(a.agpEstimate)}</span>
+                </div>
+                <span class="arrow">▼</span>
+              </div>
+            </div>
+            <div class="convo-body" id="${convoId}">
+              <div class="meta-grid" style="margin-top:16px">
+                <div class="meta-item">
+                  <div class="meta-label">模型</div>
+                  <div class="meta-value" style="font-size:0.85rem">${escHtml(a.modelName)}</div>
+                </div>
+                <div class="meta-item">
+                  <div class="meta-label">对话轮次</div>
+                  <div class="meta-value">${a.turnCount}</div>
+                </div>
+                <div class="meta-item">
+                  <div class="meta-label">最终上下文</div>
+                  <div class="meta-value">${fmtK(a.finalContext)}</div>
+                </div>
+                <div class="meta-item">
+                  <div class="meta-label">缓存节省</div>
+                  <div class="meta-value" style="color:var(--accent-green)">${((1 - a.totalCached / Math.max(a.totalUncached, 0.001)) * 100).toFixed(0)}%</div>
+                </div>
+              </div>
+              <div class="turn-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>轮次</th>
+                      <th>上下文 Input</th>
+                      <th>Output</th>
+                      <th>无缓存 💥</th>
+                      <th>有缓存 ✨</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${renderTurnRows(a.turns)}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+        }
+
+        el.innerHTML = html;
+      }
+
+      function renderTurnRows(turns) {
+        if (turns.length <= 10) {
+          return turns.map((t) => turnRow(t)).join("");
+        }
+        // Show first 3, ellipsis, last 3
+        let rows = "";
+        for (let i = 0; i < 3; i++) rows += turnRow(turns[i]);
+        rows += `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);font-family:Inter,sans-serif">⋮ 共 ${turns.length} 轮（显示首尾各 3 轮）</td></tr>`;
+        for (let i = turns.length - 3; i < turns.length; i++)
+          rows += turnRow(turns[i]);
+        return rows;
+      }
+
+      function turnRow(t) {
+        return `<tr>
+        <td>#${t.id}</td>
+        <td>${fmtK(t.inputTokens)}</td>
+        <td>${fmtK(t.outputTokens)}</td>
+        <td class="cost-red">${fmt$(t.uncached)}</td>
+        <td class="cost-blue">${fmt$(t.cached)}</td>
+      </tr>`;
+      }
+
+      function escHtml(s) {
+        const d = document.createElement("div");
+        d.textContent = s || "";
+        return d.innerHTML;
+      }
+
+      function toggleConvo(id, header) {
+        const body = document.getElementById(id);
+        const isOpen = body.classList.toggle("open");
+        header.classList.toggle("open", isOpen);
+      }
+
+      // ── File Handling ──
+      const dropzone = document.getElementById("dropzone");
+      const fileInput = document.getElementById("fileInput");
+      const fileList = document.getElementById("fileList");
+      let loadedFiles = [];
+
+      dropzone.addEventListener("click", () => fileInput.click());
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("drag-over");
+      });
+      dropzone.addEventListener("dragleave", () =>
+        dropzone.classList.remove("drag-over"),
+      );
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("drag-over");
+        handleFiles(e.dataTransfer.files);
+      });
+      fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
+
+      function handleFiles(files) {
+        for (const f of files) {
+          if (f.type !== "application/json" && !f.name.endsWith(".json"))
+            continue;
+          if (loadedFiles.find((lf) => lf.name === f.name)) continue;
+          loadedFiles.push(f);
+        }
+        updateFileList();
+        processFiles();
+      }
+
+      function updateFileList() {
+        fileList.innerHTML = loadedFiles
+          .map(
+            (f, i) => `
+        <span class="file-tag">
+          📄 ${escHtml(f.name)}
+          <span class="remove" onclick="event.stopPropagation(); removeFile(${i})">✕</span>
+        </span>
+      `,
+          )
+          .join("");
+      }
+
+      function removeFile(index) {
+        loadedFiles.splice(index, 1);
+        updateFileList();
+        if (loadedFiles.length > 0) processFiles();
+        else document.getElementById("results").style.display = "none";
+      }
+
+      async function processFiles() {
+        const analyses = [];
+        for (const f of loadedFiles) {
+          try {
+            const text = await f.text();
+            const data = JSON.parse(text);
+            analyses.push(analyzeConversation(data));
+          } catch (e) {
+            console.error("Failed to parse", f.name, e);
+          }
+        }
+        if (analyses.length > 0) renderResults(analyses);
+      }
+    </script>
+  </body>
+</html>

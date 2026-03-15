@@ -20,6 +20,7 @@ import {
     getTrajectoryTokenUsage,
     getConversationExport,
     getModelDisplayName,
+    updateModelDisplayNames,
     processSteps,
     ModelConfig,
     TrajectorySummary,
@@ -366,7 +367,13 @@ async function exportConversation(workspace: string): Promise<void> {
     }
     log(`LS found: port=${ls.port}, tls=${ls.useTls}, pid=${ls.pid}`);
 
-    // 2. Fetch all conversations
+    // 2. Update model display names from LS
+    try {
+        const configs = await fetchModelConfigs(ls);
+        updateModelDisplayNames(configs);
+    } catch { /* ok */ }
+
+    // 3. Fetch all conversations
     log('Fetching conversation list...');
     const trajectories = await getAllTrajectories(ls);
     if (trajectories.length === 0) {
@@ -498,7 +505,13 @@ async function exportAllConversations(workspace: string): Promise<void> {
     }
     log(`LS found: port=${ls.port}, tls=${ls.useTls}, pid=${ls.pid}`);
 
-    // 2. Fetch all conversations
+    // 2. Update model display names from LS
+    try {
+        const configs = await fetchModelConfigs(ls);
+        updateModelDisplayNames(configs);
+    } catch { /* ok */ }
+
+    // 3. Fetch all conversations
     log('Fetching conversation list...');
     const trajectories = await getAllTrajectories(ls);
     if (trajectories.length === 0) {

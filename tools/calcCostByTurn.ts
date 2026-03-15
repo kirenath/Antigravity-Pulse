@@ -54,11 +54,12 @@ interface ExportData {
 
 interface TurnResult {
     id: number;
-    inputTokens: number;
-    outputTokens: number;
-    uncached: number;
-    cached: number;
+    inputTokens: number;   // first sub-call's input (context at turn start, for display)
+    outputTokens: number;  // total output across all sub-calls
+    uncached: number;       // sum of all sub-calls
+    cached: number;         // sum of all sub-calls
     compressed: boolean;
+    subCallCount: number;   // how many API calls this turn made
 }
 
 // ── Token estimation ─────────────────────────────────────────────────────────
@@ -83,24 +84,34 @@ function fmt$(n: number): string {
 }
 
 // ── Core calculation ─────────────────────────────────────────────────────────
-function makeTurn(
-    id: number, inputToks: number, outputToks: number,
-    historySize: number, newToks: number, pricing: typeof PRICING['DEFAULT'],
-    isFirstTurn: boolean, isPostCompression: boolean,
-): TurnResult {
-    const outCost = (outputToks / 1e6) * pricing.out;
-    const uncachedIn = (inputToks / 1e6) * pricing.in;
+
+/**
+ * Calculate cost for a single API sub-call.
+ * Each assistant response within a turn is one sub-call.
+ */
+function calcSubCallCost(
+    inputTokens: number,
+    outputTokens: number,
+    prevInputTokens: number,
+    pricing: typeof PRICING['DEFAULT'],
+    isFirstInConversation: boolean,
+    isPostCompression: boolean,
+): { uncached: number; cached: number } {
+    const outCost = (outputTokens / 1e6) * pricing.out;
+    const uncachedIn = (inputTokens / 1e6) * pricing.in;
     let cachedIn: number;
-    if (isFirstTurn || isPostCompression) {
-        cachedIn = (inputToks / 1e6) * pricing.cacheWrite;
+    if (isFirstInConversation || isPostCompression) {
+        // Cold cache: everything is a cache write
+        cachedIn = (inputTokens / 1e6) * pricing.cacheWrite;
     } else {
-        const readPart = Math.max(0, historySize - newToks);
-        cachedIn = (readPart / 1e6) * pricing.cacheRead + (newToks / 1e6) * pricing.cacheWrite;
+        // Split: previous sub-call's input is cached, delta is new
+        const cacheRead = Math.max(0, prevInputTokens);
+        const cacheWrite = Math.max(0, inputTokens - prevInputTokens);
+        cachedIn = (cacheRead / 1e6) * pricing.cacheRead + (cacheWrite / 1e6) * pricing.cacheWrite;
     }
     return {
-        id, inputTokens: inputToks, outputTokens: outputToks,
-        uncached: uncachedIn + outCost, cached: cachedIn + outCost,
-        compressed: isPostCompression,
+        uncached: uncachedIn + outCost,
+        cached: cachedIn + outCost,
     };
 }
 
@@ -109,19 +120,52 @@ function analyzeFile(filePath: string) {
     const pricing = PRICING[data.model] || PRICING.DEFAULT;
     const BASE_OVERHEAD = 1500;
 
+    const messages = data.messages || [];
+
+    // ── Sub-call tracking state ─────────────────────────────────────────
     let contextTokens = BASE_OVERHEAD;
-    let turnCount = 0;
-    let processing = false;
-    let turnInput = 0, turnOutput = 0, newCtx = 0;
+    /** The input size of the most recently completed sub-call (for cache split). */
+    let prevSubCallInput = 0;
+    let isFirstSubCall = true;
+    let isPostCompression = false;
+
+    // Per-turn accumulation
+    let turnId = 0;
+    let inTurn = false;
+    let turnStartInput = 0;       // first sub-call's input (for display)
+    let turnCompressed = false;
+    interface SubCallResult { inputTokens: number; outputTokens: number; uncached: number; cached: number; compressed: boolean }
+    let turnSubCalls: SubCallResult[] = [];
+
     const turns: TurnResult[] = [];
 
     // Compression tracking
     let prevCpInput = -1;
     const compressionEvents: Array<{ from: number; to: number; drop: number }> = [];
-    let nextTurnIsPostCompression = false;
 
-    for (const msg of data.messages || []) {
-        // Checkpoint processing — compression detection & calibration
+    // ── Helper: finalize a turn from accumulated sub-calls ──────────────
+    function finalizeTurn(): void {
+        if (!inTurn || turnSubCalls.length === 0) return;
+        let totalOutput = 0, uncached = 0, cached = 0;
+        for (const sc of turnSubCalls) {
+            totalOutput += sc.outputTokens;
+            uncached += sc.uncached;
+            cached += sc.cached;
+        }
+        turns.push({
+            id: turnId,
+            inputTokens: turnStartInput,
+            outputTokens: totalOutput,
+            uncached,
+            cached,
+            compressed: turnCompressed,
+            subCallCount: turnSubCalls.length,
+        });
+    }
+
+    // ── Main message loop ───────────────────────────────────────────────
+    for (const msg of messages) {
+        // Checkpoint — compression detection & context calibration
         if (msg.type === 'checkpoint') {
             const cpInput = msg.tokens?.input || 0;
             if (cpInput > 0) {
@@ -130,7 +174,7 @@ function analyzeFile(filePath: string) {
                     if (drop > COMPRESSION_MIN_DROP) {
                         compressionEvents.push({ from: prevCpInput, to: cpInput, drop });
                         contextTokens = cpInput;
-                        nextTurnIsPostCompression = true;
+                        isPostCompression = true;
                     }
                 } else {
                     contextTokens = Math.max(contextTokens, cpInput);
@@ -141,19 +185,22 @@ function analyzeFile(filePath: string) {
         }
 
         if (msg.type === 'user') {
+            // Finalize previous turn
+            finalizeTurn();
+
+            // Start new turn
             const tokens = estimateTokens(msg.content);
-            if (processing) {
-                turns.push(makeTurn(turnCount, turnInput, turnOutput, contextTokens, newCtx, pricing, turns.length === 0, nextTurnIsPostCompression));
-                if (nextTurnIsPostCompression) nextTurnIsPostCompression = false;
-                contextTokens += turnOutput;
-            }
-            turnCount++;
-            processing = true;
-            turnInput = contextTokens + tokens;
-            newCtx = tokens;
-            turnOutput = 0;
             contextTokens += tokens;
-        } else if (msg.type === 'assistant') {
+            turnId++;
+            inTurn = true;
+            turnStartInput = contextTokens;
+            turnCompressed = isPostCompression;
+            turnSubCalls = [];
+            continue;
+        }
+
+        if (msg.type === 'assistant') {
+            // Each assistant message = one API sub-call
             let out = estimateTokens(msg.content || '');
             if (msg.toolCalls) {
                 for (const tc of msg.toolCalls) {
@@ -161,18 +208,39 @@ function analyzeFile(filePath: string) {
                 }
             }
             if (msg.thinking) out += estimateTokens(msg.thinking);
-            turnOutput += out;
-            newCtx += out;
-        } else if (msg.type === 'tool_result' || msg.type === 'tool_call') {
+
+            // Calculate cost for this sub-call
+            const costs = calcSubCallCost(
+                contextTokens, out, prevSubCallInput,
+                pricing, isFirstSubCall, isPostCompression,
+            );
+            turnSubCalls.push({
+                inputTokens: contextTokens,
+                outputTokens: out,
+                uncached: costs.uncached,
+                cached: costs.cached,
+                compressed: isPostCompression,
+            });
+
+            // Update state: this sub-call's input becomes the cache baseline
+            prevSubCallInput = contextTokens;
+            isFirstSubCall = false;
+            if (isPostCompression) isPostCompression = false;
+
+            // Assistant output becomes part of context for the next sub-call
+            contextTokens += out;
+            continue;
+        }
+
+        // tool_result / tool_call — kept for robustness (not in current exports)
+        if (msg.type === 'tool_result' || msg.type === 'tool_call') {
             const t = estimateTokens(msg.content || '');
             contextTokens += t;
-            newCtx += t;
+            continue;
         }
     }
-    if (processing) {
-        turns.push(makeTurn(turnCount, turnInput, turnOutput, contextTokens, newCtx, pricing, turns.length === 0, nextTurnIsPostCompression));
-        contextTokens += turnOutput;
-    }
+    // Finalize last turn
+    finalizeTurn();
 
     let totalUncached = 0, totalCached = 0;
     for (const t of turns) { totalUncached += t.uncached; totalCached += t.cached; }
@@ -184,8 +252,8 @@ function analyzeFile(filePath: string) {
         title: data.title || data.cascadeId || 'Untitled',
         model: data.model,
         modelName: pricing.name,
-        turnCount,
-        sendCount: data.usage?.sendCount || turnCount,
+        turnCount: turnId,
+        sendCount: data.usage?.sendCount || turnId,
         finalContext: contextTokens,
         totalUncached, totalCached, agpEstimate,
         turns, compressionEvents,
@@ -229,7 +297,7 @@ function printResult(r: ReturnType<typeof analyzeFile>) {
     const showIndices = new Set<number>();
     for (let i = 0; i < Math.min(5, r.turns.length); i++) showIndices.add(i);
     for (let i = Math.max(0, r.turns.length - 3); i < r.turns.length; i++) showIndices.add(i);
-    r.turns.forEach((t, i) => { if (t.compressed) showIndices.add(i); });
+    r.turns.forEach((t, i) => { if (t.compressed || t.subCallCount > 1) showIndices.add(i); });
     const sorted = [...showIndices].sort((a, b) => a - b);
     let lastShown = -1;
 
@@ -240,8 +308,9 @@ function printResult(r: ReturnType<typeof analyzeFile>) {
         const t = r.turns[i];
         const comp = t.compressed ? ` ${C.yellow}🗜️${C.reset}` : '';
         const coldTag = t.compressed ? ` ${C.yellow}(冷缓存)${C.reset}` : '';
+        const subTag = t.subCallCount > 1 ? ` ${C.cyan}×${t.subCallCount}${C.reset}` : '';
         console.log(
-            `  ${C.bold}#${String(t.id).padStart(3)}${C.reset}${comp}` +
+            `  ${C.bold}#${String(t.id).padStart(3)}${C.reset}${comp}${subTag}` +
             `  ${fmtK(t.inputTokens).padStart(10)}` +
             `  ${fmtK(t.outputTokens).padStart(10)}` +
             `  ${C.red}${fmt$(t.uncached).padStart(12)}${C.reset}` +

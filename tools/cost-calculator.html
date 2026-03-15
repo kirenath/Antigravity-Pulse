@@ -737,46 +737,101 @@
       // ── Core Calculation ──
       const COMPRESSION_MIN_DROP = 5000;
 
+      /**
+       * Calculate cost for a single API sub-call.
+       */
+      function calcSubCallCost(
+        inputTokens,
+        outputTokens,
+        prevInputTokens,
+        pricing,
+        isFirstInConversation,
+        isPostCompression,
+      ) {
+        const outCost = (outputTokens / 1e6) * pricing.out;
+        const uncachedIn = (inputTokens / 1e6) * pricing.in;
+        let cachedIn;
+        if (isFirstInConversation || isPostCompression) {
+          cachedIn = (inputTokens / 1e6) * pricing.cacheWrite;
+        } else {
+          const cacheRead = Math.max(0, prevInputTokens);
+          const cacheWrite = Math.max(0, inputTokens - prevInputTokens);
+          cachedIn =
+            (cacheRead / 1e6) * pricing.cacheRead +
+            (cacheWrite / 1e6) * pricing.cacheWrite;
+        }
+        return {
+          uncached: uncachedIn + outCost,
+          cached: cachedIn + outCost,
+        };
+      }
+
       function analyzeConversation(data) {
         const pricing = getPricing(data.model);
         const BASE_OVERHEAD = 1500;
 
+        const messages = data.messages || [];
+
+        // ── Sub-call tracking state ──
         let contextTokens = BASE_OVERHEAD;
-        let turnCount = 0;
-        let processing = false;
-        let turnInput = 0,
-          turnOutput = 0,
-          newCtx = 0;
+        let prevSubCallInput = 0;
+        let isFirstSubCall = true;
+        let isPostCompression = false;
+
+        // Per-turn accumulation
+        let turnId = 0;
+        let inTurn = false;
+        let turnStartInput = 0;
+        let turnCompressed = false;
+        let turnSubCalls = [];
+
         const turns = [];
 
         // Compression tracking
         let prevCheckpointInput = -1;
         let compressionEvents = [];
-        let nextTurnIsPostCompression = false; // flag: cache invalidated
 
-        for (const msg of data.messages || []) {
-          // Process checkpoints for compression detection & context calibration
+        // Helper: finalize a turn from accumulated sub-calls
+        function finalizeTurn() {
+          if (!inTurn || turnSubCalls.length === 0) return;
+          let totalOutput = 0,
+            uncached = 0,
+            cached = 0;
+          for (const sc of turnSubCalls) {
+            totalOutput += sc.outputTokens;
+            uncached += sc.uncached;
+            cached += sc.cached;
+          }
+          turns.push({
+            id: turnId,
+            inputTokens: turnStartInput,
+            outputTokens: totalOutput,
+            uncached,
+            cached,
+            compressed: turnCompressed,
+            subCallCount: turnSubCalls.length,
+          });
+        }
+
+        // ── Main message loop ──
+        for (const msg of messages) {
+          // Checkpoint — compression detection & context calibration
           if (msg.type === "checkpoint") {
             const cpInput = msg.tokens?.input || 0;
             if (cpInput > 0) {
-              // Detect compression: significant drop in inputTokens
               if (prevCheckpointInput > 0 && cpInput < prevCheckpointInput) {
                 const drop = prevCheckpointInput - cpInput;
                 if (drop > COMPRESSION_MIN_DROP) {
                   compressionEvents.push({
-                    beforeTurn: turnCount,
+                    beforeTurn: turnId,
                     from: prevCheckpointInput,
                     to: cpInput,
                     drop,
                   });
-                  // Recalibrate context to actual checkpoint value
                   contextTokens = cpInput;
-                  // Cache is invalidated after compression
-                  nextTurnIsPostCompression = true;
+                  isPostCompression = true;
                 }
-              } else if (cpInput > 0) {
-                // Calibrate context estimate to real checkpoint value
-                // (only if checkpoint is larger — avoids undercounting)
+              } else {
                 contextTokens = Math.max(contextTokens, cpInput);
               }
               prevCheckpointInput = cpInput;
@@ -785,30 +840,22 @@
           }
 
           if (msg.type === "user") {
+            // Finalize previous turn
+            finalizeTurn();
+
+            // Start new turn
             const tokens = estimateTokens(msg.content);
-            if (processing) {
-              turns.push(
-                makeTurn(
-                  turnCount,
-                  turnInput,
-                  turnOutput,
-                  contextTokens,
-                  newCtx,
-                  pricing,
-                  turns.length > 0 ? false : true, // isFirstTurn
-                  nextTurnIsPostCompression,
-                ),
-              );
-              if (nextTurnIsPostCompression) nextTurnIsPostCompression = false;
-              contextTokens += turnOutput;
-            }
-            turnCount++;
-            processing = true;
-            turnInput = contextTokens + tokens;
-            newCtx = tokens;
-            turnOutput = 0;
             contextTokens += tokens;
-          } else if (msg.type === "assistant") {
+            turnId++;
+            inTurn = true;
+            turnStartInput = contextTokens;
+            turnCompressed = isPostCompression;
+            turnSubCalls = [];
+            continue;
+          }
+
+          if (msg.type === "assistant") {
+            // Each assistant message = one API sub-call
             let out = estimateTokens(msg.content || "");
             if (msg.toolCalls) {
               for (const tc of msg.toolCalls) {
@@ -816,29 +863,43 @@
               }
             }
             if (msg.thinking) out += estimateTokens(msg.thinking);
-            turnOutput += out;
-            newCtx += out;
-          } else if (msg.type === "tool_result" || msg.type === "tool_call") {
+
+            // Calculate cost for this sub-call
+            const costs = calcSubCallCost(
+              contextTokens,
+              out,
+              prevSubCallInput,
+              pricing,
+              isFirstSubCall,
+              isPostCompression,
+            );
+            turnSubCalls.push({
+              inputTokens: contextTokens,
+              outputTokens: out,
+              uncached: costs.uncached,
+              cached: costs.cached,
+              compressed: isPostCompression,
+            });
+
+            // Update state
+            prevSubCallInput = contextTokens;
+            isFirstSubCall = false;
+            if (isPostCompression) isPostCompression = false;
+
+            // Assistant output becomes part of context for next sub-call
+            contextTokens += out;
+            continue;
+          }
+
+          // tool_result / tool_call — kept for robustness
+          if (msg.type === "tool_result" || msg.type === "tool_call") {
             const t = estimateTokens(msg.content || "");
             contextTokens += t;
-            newCtx += t;
+            continue;
           }
         }
-        if (processing) {
-          turns.push(
-            makeTurn(
-              turnCount,
-              turnInput,
-              turnOutput,
-              contextTokens,
-              newCtx,
-              pricing,
-              turns.length === 0,
-              nextTurnIsPostCompression,
-            ),
-          );
-          contextTokens += turnOutput;
-        }
+        // Finalize last turn
+        finalizeTurn();
 
         let totalUncached = 0,
           totalCached = 0;
@@ -847,14 +908,13 @@
           totalCached += t.cached;
         }
 
-        // AGP checkpoint estimate
         const agpEstimate = data.usage?.estimatedCost || 0;
 
         return {
           title: data.title || data.cascadeId || "Untitled",
           model: data.model,
           modelName: pricing.name,
-          turnCount,
+          turnCount: turnId,
           finalContext: contextTokens,
           totalUncached,
           totalCached,
@@ -864,38 +924,6 @@
           usage: data.usage || {},
           createdTime: data.createdTime,
           lastModifiedTime: data.lastModifiedTime,
-        };
-      }
-
-      function makeTurn(
-        id,
-        inputToks,
-        outputToks,
-        historySize,
-        newToks,
-        pricing,
-        isFirstTurn,
-        isPostCompression,
-      ) {
-        const outCost = (outputToks / 1e6) * pricing.out;
-        const uncachedIn = (inputToks / 1e6) * pricing.in;
-        let cachedIn;
-        if (isFirstTurn || isPostCompression) {
-          // First turn or after compression: cache is cold, write everything
-          cachedIn = (inputToks / 1e6) * pricing.cacheWrite;
-        } else {
-          const readPart = Math.max(0, historySize - newToks);
-          cachedIn =
-            (readPart / 1e6) * pricing.cacheRead +
-            (newToks / 1e6) * pricing.cacheWrite;
-        }
-        return {
-          id,
-          inputTokens: inputToks,
-          outputTokens: outputToks,
-          uncached: uncachedIn + outCost,
-          cached: cachedIn + outCost,
-          compressed: isPostCompression || false,
         };
       }
 
@@ -1067,15 +1095,14 @@
         if (turns.length <= 12) {
           return turns.map((t) => turnRow(t)).join("");
         }
-        // Show first 5, ellipsis, last 3, and any compressed turns
+        // Show first 5, ellipsis, last 3, and any compressed/multi-subcall turns
         let rows = "";
         const showIndices = new Set();
         for (let i = 0; i < 5; i++) showIndices.add(i);
         for (let i = turns.length - 3; i < turns.length; i++)
           showIndices.add(i);
-        // Always show compressed turns
         turns.forEach((t, i) => {
-          if (t.compressed) showIndices.add(i);
+          if (t.compressed || t.subCallCount > 1) showIndices.add(i);
         });
         const sorted = [...showIndices].sort((a, b) => a - b);
         let lastShown = -1;
@@ -1094,8 +1121,11 @@
         const compTag = t.compressed
           ? ' <span title="上下文压缩后，缓存失效，重新写入" style="color:var(--accent-amber)">🗜️</span>'
           : "";
+        const subTag = t.subCallCount > 1
+          ? ` <span title="${t.subCallCount} 次 API 调用" style="color:var(--accent-cyan);font-size:0.7rem">×${t.subCallCount}</span>`
+          : "";
         return `<tr${t.compressed ? ' style="background:rgba(245,158,11,0.06)"' : ""}>
-        <td>#${t.id}${compTag}</td>
+        <td>#${t.id}${compTag}${subTag}</td>
         <td>${fmtK(t.inputTokens)}</td>
         <td>${fmtK(t.outputTokens)}</td>
         <td class="cost-red">${fmt$(t.uncached)}</td>

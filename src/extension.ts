@@ -87,6 +87,14 @@ const COMPRESSION_PERSIST_POLLS = 3;
 /** Map of cascadeId → remaining polls to show compression indicator. */
 const compressionPersistCounters = new Map<string, number>();
 
+/** AGP: Previous poll baselines per cascade — used for delta-based WindowTracker recording. */
+const previousWindowBaselines = new Map<string, {
+    sendCount: number;
+    retryCount: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+}>();
+
 // ─── Activation ───────────────────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -401,7 +409,7 @@ async function pollContextUsage(): Promise<void> {
         log(`Selected: "${activeTrajectory.summary}" (${activeTrajectory.cascadeId.substring(0, 8)}) reason=${selectionReason} status=${activeTrajectory.status}`);
 
         // 5. Get context usage for selected trajectory
-        const config = vscode.workspace.getConfiguration('antigravityContextMonitor');
+        const config = vscode.workspace.getConfiguration('agp');
         const customLimits = config.get<Record<string, number>>('contextLimits');
 
         currentUsage = await getContextUsage(lsInfo, activeTrajectory, customLimits, abortController.signal);
@@ -501,11 +509,13 @@ async function pollContextUsage(): Promise<void> {
         }
         usageStore.persist();
 
-        // AGP: Record events into WindowTracker for 5h window tracking
-        // We use the currentUsage data to feed a single aggregate event per poll
+        // AGP: Delta-based recording into WindowTracker for 5h window tracking.
+        // Only record when sendCount or retryCount CHANGED since last poll.
         if (currentUsage && currentUsage.sendCount > 0) {
+            const cid = currentUsage.cascadeId;
             const group = getQuotaGroup(currentUsage.model);
             if (group) {
+                // Compute current cumulative totals from checkpoint data
                 const allUsages = [
                     ...(currentUsage.checkpointUsages || []),
                     ...(currentUsage.postCheckpointModelDeltas || []),
@@ -515,22 +525,32 @@ async function pollContextUsage(): Promise<void> {
                     totalIn += cp.inputTokens;
                     totalOut += cp.outputTokens;
                 }
-                const cost = calculateCost(currentUsage.model, totalIn, totalOut);
 
-                windowTracker.recordEvent({
-                    cascadeId: currentUsage.cascadeId,
-                    model: currentUsage.model,
-                    quotaGroup: group,
-                    inputTokens: totalIn,
-                    outputTokens: totalOut,
-                    cost,
-                    type: 'send',
-                });
+                const prev = previousWindowBaselines.get(cid);
+                const deltaSends = currentUsage.sendCount - (prev?.sendCount || 0);
+                const deltaRetries = currentUsage.retryCount - (prev?.retryCount || 0);
+                const deltaIn = totalIn - (prev?.totalInputTokens || 0);
+                const deltaOut = totalOut - (prev?.totalOutputTokens || 0);
 
-                // Record retries as separate events
-                if (currentUsage.retryCount > 0) {
+                // Only record if there are new sends
+                if (deltaSends > 0 && deltaIn >= 0 && deltaOut >= 0) {
+                    const cost = calculateCost(currentUsage.model, deltaIn, deltaOut);
                     windowTracker.recordEvent({
-                        cascadeId: currentUsage.cascadeId,
+                        cascadeId: cid,
+                        model: currentUsage.model,
+                        quotaGroup: group,
+                        inputTokens: deltaIn,
+                        outputTokens: deltaOut,
+                        cost,
+                        type: 'send',
+                    });
+                    log(`[WindowTracker] Recorded delta: +${deltaSends} sends, +${deltaIn} in, +${deltaOut} out, $${cost.toFixed(4)}`);
+                }
+
+                // Record delta retries
+                if (deltaRetries > 0) {
+                    windowTracker.recordEvent({
+                        cascadeId: cid,
                         model: currentUsage.model,
                         quotaGroup: group,
                         inputTokens: 0,
@@ -539,6 +559,14 @@ async function pollContextUsage(): Promise<void> {
                         type: 'retry',
                     });
                 }
+
+                // Update baseline for next poll
+                previousWindowBaselines.set(cid, {
+                    sendCount: currentUsage.sendCount,
+                    retryCount: currentUsage.retryCount,
+                    totalInputTokens: totalIn,
+                    totalOutputTokens: totalOut,
+                });
             }
         }
 
@@ -617,6 +645,12 @@ function updateBaselines(trajectories: TrajectorySummary[]): void {
     for (const id of compressionPersistCounters.keys()) {
         if (!activeIds.has(id)) {
             compressionPersistCounters.delete(id);
+        }
+    }
+    // AGP: Clean up stale entries from previousWindowBaselines
+    for (const id of previousWindowBaselines.keys()) {
+        if (!activeIds.has(id)) {
+            previousWindowBaselines.delete(id);
         }
     }
     firstPollDone = true;

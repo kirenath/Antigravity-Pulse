@@ -469,12 +469,134 @@ async function exportConversation(workspace: string): Promise<void> {
     console.log('');
 }
 
+// ─── Export All Mode ─────────────────────────────────────────────────────────
+
+async function exportAllConversations(workspace: string): Promise<void> {
+    console.log('');
+    console.log('  ┌──────────────────────────────────────────┐');
+    console.log('  │  AGP Export All — Batch Exporter          │');
+    console.log('  └──────────────────────────────────────────┘');
+    console.log('');
+    console.log(`  Workspace: ${workspace}`);
+    console.log('');
+
+    // 1. Discover LS
+    log('Discovering Antigravity LS...');
+    const workspaceUri = `file:///${workspace.replace(/\\/g, '/')}`;
+    let ls: LSInfo | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+            ls = await discoverLanguageServer(workspaceUri);
+            if (ls) break;
+        } catch { /* retry */ }
+        log('LS not found, retrying...');
+        await sleep(2000);
+    }
+    if (!ls) {
+        console.error('❌ Could not discover Antigravity LS. Is Antigravity running?');
+        process.exit(1);
+    }
+    log(`LS found: port=${ls.port}, tls=${ls.useTls}, pid=${ls.pid}`);
+
+    // 2. Fetch all conversations
+    log('Fetching conversation list...');
+    const trajectories = await getAllTrajectories(ls);
+    if (trajectories.length === 0) {
+        console.log('  No conversations found.');
+        process.exit(0);
+    }
+    log(`Found ${trajectories.length} conversations`);
+
+    // 3. Fetch quota info
+    let quotaInfo: { remainingFraction: number; resetTime: string } | undefined;
+    try {
+        const configs = await fetchModelConfigs(ls);
+        const withQuota = configs.find(c => c.remainingFraction !== undefined);
+        if (withQuota && withQuota.remainingFraction !== undefined) {
+            quotaInfo = {
+                remainingFraction: withQuota.remainingFraction,
+                resetTime: withQuota.resetTime || '',
+            };
+        }
+    } catch { /* ok */ }
+
+    // 4. Prepare exports directory
+    const agpDir = ensureAgpDir(workspace);
+    const exportsDir = path.join(agpDir, 'exports');
+    if (!fs.existsSync(exportsDir)) {
+        fs.mkdirSync(exportsDir, { recursive: true });
+    }
+
+    // 5. Export each conversation
+    let exported = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (let i = 0; i < trajectories.length; i++) {
+        const t = trajectories[i];
+        const title = (t.summary || t.cascadeId).substring(0, 50);
+        const safeTitle = (t.summary || 'conversation')
+            .replace(/[^a-zA-Z0-9\u4e00-\u9fff\-_]/g, '_')
+            .substring(0, 50);
+
+        // Check if already exported (by cascadeId in filename pattern)
+        const existingFiles = fs.readdirSync(exportsDir);
+        const alreadyExported = existingFiles.some(f => f.startsWith(safeTitle));
+        if (alreadyExported) {
+            log(`[${i + 1}/${trajectories.length}] ⏭️  Skip (already exported): ${title}`);
+            skipped++;
+            continue;
+        }
+
+        try {
+            log(`[${i + 1}/${trajectories.length}] 📦 Exporting: ${title} (${t.stepCount} steps)...`);
+            const data = await getConversationExport(ls, t, quotaInfo);
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+            const filename = `${safeTitle}_${timestamp}.json`;
+            const filepath = path.join(exportsDir, filename);
+            writeJson(filepath, data);
+
+            const sizeKB = (Buffer.byteLength(JSON.stringify(data, null, 2)) / 1024).toFixed(1);
+            log(`   ✅ ${filename} (${data.messages.length} msgs, ${sizeKB} KB)`);
+            exported++;
+        } catch (err) {
+            log(`   ❌ Failed: ${(err as Error).message}`);
+            failed++;
+        }
+
+        // Small delay between exports to avoid overwhelming the LS
+        if (i < trajectories.length - 1) await sleep(500);
+    }
+
+    // 6. Summary
+    console.log('');
+    console.log('  ┌──────────────────────────────────────────┐');
+    console.log('  │  Batch Export Complete ✅                  │');
+    console.log('  └──────────────────────────────────────────┘');
+    console.log('');
+    console.log(`  📦 Exported: ${exported}`);
+    console.log(`  ⏭️  Skipped:  ${skipped} (already exported)`);
+    if (failed > 0) console.log(`  ❌ Failed:   ${failed}`);
+    console.log(`  📂 Output:   ${exportsDir}`);
+    console.log('');
+    if (exported > 0) {
+        console.log(`  💡 Run cost analysis:`);
+        console.log(`     npx tsx tools/calcCostByTurn.ts .agp/exports/*.json`);
+        console.log('');
+    }
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+    const isExportAll = process.argv.includes('--export-all');
     const isExportMode = process.argv.includes('--export');
     const workspace = resolveWorkspace();
 
+    if (isExportAll) {
+        return exportAllConversations(workspace);
+    }
     if (isExportMode) {
         return exportConversation(workspace);
     }

@@ -66,6 +66,8 @@
   "scripts": {
     "monitor": "npx tsx tools/monitor.ts",
     "export": "npx tsx tools/monitor.ts --export",
+    "export-all": "npx tsx tools/monitor.ts --export-all",
+    "cost": "npx tsx tools/calcCostByTurn.ts",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "vitest run",

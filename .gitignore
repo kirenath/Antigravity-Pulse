@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Compiled output
+out/
+
+# VSIX packages
+*.vsix
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Reference projects (large, not part of source)
+reference/
+
+# agent folder
+.agent/
+.agents/
+
+# prd folder
+prd/
+
+# vsix产物
+*.vsix
+

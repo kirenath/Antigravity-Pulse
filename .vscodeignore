@@ -1,0 +1,27 @@
+# Source & config (only compiled out/ is needed)
+src/**
+tsconfig.json
+pnpm-lock.yaml
+
+# Reference projects (NOT part of the extension)
+reference/**
+
+# PRD and agent config
+prd/**
+.agent/**
+.agents/**
+
+# Dev tooling
+.gitignore
+.git/**
+node_modules/**
+*.vsix
+
+# Tests
+**/*.test.ts
+**/*.spec.ts
+vitest.config.*
+
+# OS files
+.DS_Store
+Thumbs.db

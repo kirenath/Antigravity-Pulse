@@ -1,0 +1,79 @@
+{
+  "name": "ag-pulse",
+  "displayName": "AG Pulse",
+  "description": "Antigravity 实时资源监控插件 — Context Window Monitor + 5h 滚动窗口分析",
+  "version": "0.1.0",
+  "publisher": "lalalavir",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kirenath/ag-pulse.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=18.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "agp.showReport",
+        "title": "AG Pulse: Show Report / 显示报告"
+      },
+      {
+        "command": "agp.showDetails",
+        "title": "AG Pulse: Show Details / 详情面板"
+      },
+      {
+        "command": "agp.refresh",
+        "title": "AG Pulse: Refresh / 刷新"
+      }
+    ],
+    "configuration": {
+      "title": "AG Pulse / 脉冲监控设置",
+      "properties": {
+        "agp.pollingInterval": {
+          "type": "number",
+          "default": 5,
+          "description": "Polling interval in seconds / 轮询间隔（秒）"
+        },
+        "agp.windowDurationHours": {
+          "type": "number",
+          "default": 5,
+          "description": "Quota window duration in hours / 配额窗口时长（小时）"
+        },
+        "agp.contextLimits": {
+          "type": "object",
+          "default": {
+            "MODEL_PLACEHOLDER_M37": 1000000,
+            "MODEL_PLACEHOLDER_M36": 1000000,
+            "MODEL_PLACEHOLDER_M18": 1000000,
+            "MODEL_PLACEHOLDER_M35": 200000,
+            "MODEL_PLACEHOLDER_M26": 200000,
+            "MODEL_OPENAI_GPT_OSS_120B_MEDIUM": 128000
+          },
+          "description": "Model context window limits (in tokens). Key is the model's internal ID. / 各模型上下文窗口大小（token 数），key 为模型内部 ID。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "pnpm dlx @vscode/vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
+  }
+}

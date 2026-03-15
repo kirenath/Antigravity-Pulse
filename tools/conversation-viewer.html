@@ -2,16 +2,10 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AGP Conversation Viewer — 对话可视化</title>
-    <meta
-      name="description"
-      content="可视化 AGP 导出的对话 JSON 文件，查看完整对话内容、AI 推理过程、工具调用和 Token 统计。"
-    />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>AGP Conversation Viewer</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -19,320 +13,262 @@
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css"
-      id="hljs-dark"
     />
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-      /* ═══ Design Tokens ═══ */
       :root {
-        --radius: 16px;
-        --radius-sm: 10px;
-        --radius-xs: 6px;
-        --transition: 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        --radius: 12px;
+        --radius-sm: 8px;
+        --tr: 0.2s ease;
       }
-
       [data-theme="dark"] {
-        --bg-primary: #0a0a0f;
-        --bg-secondary: #12121a;
-        --bg-card: #1a1a26;
-        --bg-card-hover: #22223a;
-        --bg-user: #1e1b4b;
-        --bg-user-border: #4f46e5;
-        --bg-assistant: #1a1a26;
-        --bg-assistant-border: #374151;
-        --bg-thinking: #1c1917;
-        --bg-thinking-border: #78716c;
-        --bg-tool: #0c1222;
-        --bg-tool-border: #1e40af;
-        --bg-checkpoint: rgba(245, 158, 11, 0.08);
-        --bg-checkpoint-border: rgba(245, 158, 11, 0.3);
-        --border: #2a2a3e;
-        --border-glow: #6366f1;
-        --text-primary: #e8e8ef;
-        --text-secondary: #9899ac;
-        --text-dim: #666680;
-        --text-on-user: #c7d2fe;
-        --accent-purple: #8b5cf6;
-        --accent-blue: #3b82f6;
-        --accent-cyan: #06b6d4;
-        --accent-green: #10b981;
-        --accent-amber: #f59e0b;
-        --accent-red: #ef4444;
-        --accent-pink: #ec4899;
-        --gradient-hero: linear-gradient(
-          135deg,
-          #6366f1 0%,
-          #8b5cf6 30%,
-          #ec4899 100%
-        );
-        --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
-        --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.12);
-        --ambient-1: rgba(99, 102, 241, 0.05);
-        --ambient-2: rgba(236, 72, 153, 0.03);
-        --bar-track: rgba(255, 255, 255, 0.04);
+        --bg0: #0b1120;
+        --bg1: #0f172a;
+        --bg2: #1e293b;
+        --bg3: #334155;
+        --bd: #334155;
+        --bd2: #475569;
+        --bd-glow: #818cf8;
+        --tx1: #f8fafc;
+        --tx2: #94a3b8;
+        --tx3: #64748b;
+        --user: #818cf8;
+        --user-bg: rgba(129, 140, 248, 0.08);
+        --user-bd: rgba(129, 140, 248, 0.3);
+        --ai: #22d3ee;
+        --ai-bg: rgba(34, 211, 238, 0.05);
+        --ai-bd: rgba(34, 211, 238, 0.2);
+        --green: #22c55e;
+        --amber: #f59e0b;
+        --red: #ef4444;
+        --blue: #3b82f6;
+        --think-bg: rgba(245, 158, 11, 0.06);
+        --think-bd: rgba(245, 158, 11, 0.25);
+        --tool-bg: rgba(59, 130, 246, 0.06);
+        --tool-bd: rgba(59, 130, 246, 0.25);
+        --cp-bg: rgba(245, 158, 11, 0.05);
+        --cp-bd: rgba(245, 158, 11, 0.2);
+        --hero: linear-gradient(135deg, #818cf8, #22d3ee);
+        --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
         --code-bg: #0d1117;
-        --search-highlight: rgba(250, 204, 21, 0.3);
+        --glass-bg: rgba(15, 23, 42, 0.85);
+        --glass-bd: rgba(51, 65, 85, 0.6);
       }
-
       [data-theme="light"] {
-        --bg-primary: #f8f8fb;
-        --bg-secondary: #eeeef2;
-        --bg-card: #ffffff;
-        --bg-card-hover: #f3f3f8;
-        --bg-user: #eef2ff;
-        --bg-user-border: #818cf8;
-        --bg-assistant: #ffffff;
-        --bg-assistant-border: #d1d5db;
-        --bg-thinking: #fefce8;
-        --bg-thinking-border: #d97706;
-        --bg-tool: #eff6ff;
-        --bg-tool-border: #3b82f6;
-        --bg-checkpoint: rgba(245, 158, 11, 0.06);
-        --bg-checkpoint-border: rgba(245, 158, 11, 0.35);
-        --border: #d8d8e0;
-        --border-glow: #6366f1;
-        --text-primary: #1a1a2e;
-        --text-secondary: #5c5c72;
-        --text-dim: #9898aa;
-        --text-on-user: #3730a3;
-        --accent-purple: #7c3aed;
-        --accent-blue: #2563eb;
-        --accent-cyan: #0891b2;
-        --accent-green: #059669;
-        --accent-amber: #d97706;
-        --accent-red: #dc2626;
-        --accent-pink: #db2777;
-        --gradient-hero: linear-gradient(
-          135deg,
-          #4f46e5 0%,
-          #7c3aed 30%,
-          #db2777 100%
-        );
-        --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.06);
-        --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.08);
-        --ambient-1: rgba(99, 102, 241, 0.03);
-        --ambient-2: rgba(236, 72, 153, 0.02);
-        --bar-track: rgba(0, 0, 0, 0.05);
+        --bg0: #f1f5f9;
+        --bg1: #f8fafc;
+        --bg2: #ffffff;
+        --bg3: #f1f5f9;
+        --bd: #e2e8f0;
+        --bd2: #cbd5e1;
+        --bd-glow: #6366f1;
+        --tx1: #0f172a;
+        --tx2: #64748b;
+        --tx3: #94a3b8;
+        --user: #6366f1;
+        --user-bg: rgba(99, 102, 241, 0.06);
+        --user-bd: rgba(99, 102, 241, 0.25);
+        --ai: #0891b2;
+        --ai-bg: rgba(8, 145, 178, 0.04);
+        --ai-bd: rgba(8, 145, 178, 0.18);
+        --green: #16a34a;
+        --amber: #d97706;
+        --red: #dc2626;
+        --blue: #2563eb;
+        --think-bg: rgba(217, 119, 6, 0.06);
+        --think-bd: rgba(217, 119, 6, 0.25);
+        --tool-bg: rgba(37, 99, 235, 0.05);
+        --tool-bd: rgba(37, 99, 235, 0.2);
+        --cp-bg: rgba(217, 119, 6, 0.04);
+        --cp-bd: rgba(217, 119, 6, 0.2);
+        --hero: linear-gradient(135deg, #6366f1, #0891b2);
+        --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
         --code-bg: #f6f8fa;
-        --search-highlight: rgba(250, 204, 21, 0.5);
+        --glass-bg: rgba(248, 250, 252, 0.85);
+        --glass-bd: rgba(226, 232, 240, 0.8);
       }
-
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-
       body {
-        font-family:
-          "Inter",
-          -apple-system,
-          sans-serif;
-        background: var(--bg-primary);
-        color: var(--text-primary);
+        font-family: "Fira Sans", sans-serif;
+        background: var(--bg0);
+        color: var(--tx1);
         min-height: 100vh;
-        overflow-x: hidden;
       }
-
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        background:
-          radial-gradient(
-            circle at 20% 10%,
-            var(--ambient-1) 0%,
-            transparent 50%
-          ),
-          radial-gradient(
-            circle at 80% 90%,
-            var(--ambient-2) 0%,
-            transparent 50%
-          );
-        pointer-events: none;
-        z-index: 0;
-      }
-
       .container {
-        max-width: 900px;
+        max-width: 880px;
         margin: 0 auto;
-        padding: 32px 20px;
+        padding: 28px 16px;
         position: relative;
-        z-index: 1;
       }
-
-      /* ═══ Header ═══ */
-      .app-header {
+      /* Header */
+      .hdr {
         text-align: center;
-        margin-bottom: 36px;
+        margin-bottom: 32px;
       }
-      .app-header h1 {
-        font-size: 2.2rem;
-        font-weight: 800;
-        background: var(--gradient-hero);
+      .hdr h1 {
+        font-family: "Fira Code", monospace;
+        font-size: 1.8rem;
+        font-weight: 700;
+        background: var(--hero);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        line-height: 1.3;
-        margin-bottom: 8px;
-      }
-      .app-header h1 .emoji {
-        -webkit-text-fill-color: initial;
-      }
-      .app-header p {
-        color: var(--text-secondary);
-        font-size: 0.95rem;
-        max-width: 580px;
-        margin: 0 auto;
-        line-height: 1.6;
-      }
-      .app-header .badge {
-        display: inline-block;
-        margin-top: 12px;
-        padding: 4px 14px;
-        background: rgba(99, 102, 241, 0.1);
-        border: 1px solid rgba(99, 102, 241, 0.22);
-        border-radius: 20px;
-        font-size: 0.76rem;
-        color: var(--accent-purple);
-        font-weight: 500;
-      }
-
-      /* ═══ Dropzone ═══ */
-      .dropzone {
-        border: 2px dashed var(--border);
-        border-radius: var(--radius);
-        padding: 56px 28px;
-        text-align: center;
-        cursor: pointer;
-        transition: all var(--transition);
-        background: var(--bg-secondary);
-        position: relative;
-      }
-      .dropzone:hover,
-      .dropzone.drag-over {
-        border-color: var(--border-glow);
-        background: var(--bg-card);
-        box-shadow: var(--shadow-glow);
-      }
-      .dropzone.drag-over {
-        transform: scale(1.005);
-      }
-      .dropzone-icon {
-        font-size: 3rem;
-        margin-bottom: 12px;
-        display: block;
-      }
-      .dropzone h3 {
-        font-size: 1.1rem;
-        font-weight: 600;
         margin-bottom: 6px;
       }
-      .dropzone p {
-        color: var(--text-secondary);
+      .hdr p {
+        color: var(--tx2);
         font-size: 0.88rem;
+        line-height: 1.6;
+        max-width: 520px;
+        margin: 0 auto;
       }
-      .dropzone .hint {
-        margin-top: 14px;
-        font-size: 0.75rem;
-        color: var(--text-dim);
+      .hdr .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        padding: 4px 14px;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        border-radius: 20px;
+        font-size: 0.72rem;
+        color: var(--tx2);
+        font-weight: 500;
       }
-      #fileInput {
+      /* Dropzone */
+      .dz {
+        border: 2px dashed var(--bd);
+        border-radius: var(--radius);
+        padding: 52px 24px;
+        text-align: center;
+        cursor: pointer;
+        background: var(--bg1);
+        transition: all var(--tr);
+      }
+      .dz:hover,
+      .dz.over {
+        border-color: var(--bd-glow);
+        background: var(--bg2);
+        box-shadow: var(--shadow);
+      }
+      .dz h3 {
+        font-family: "Fira Code", monospace;
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 12px 0 4px;
+        color: var(--tx1);
+      }
+      .dz p {
+        color: var(--tx2);
+        font-size: 0.82rem;
+      }
+      .dz .icn {
+        color: var(--tx3);
+        margin-bottom: 4px;
+      }
+      #fi {
         display: none;
       }
-
-      /* ═══ Theme Toggle ═══ */
-      .theme-toggle {
+      /* Theme toggle */
+      .tt {
         position: fixed;
-        top: 16px;
-        right: 16px;
+        top: 14px;
+        right: 14px;
         z-index: 200;
-        width: 40px;
-        height: 40px;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
-        border: 1px solid var(--border);
-        background: var(--bg-card);
-        font-size: 1.1rem;
+        border: 1px solid var(--bd);
+        background: var(--bg2);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all var(--transition);
-        box-shadow: var(--shadow-lg);
+        transition: all var(--tr);
+        box-shadow: var(--shadow);
+        color: var(--tx2);
       }
-      .theme-toggle:hover {
-        border-color: var(--border-glow);
-        transform: scale(1.1);
+      .tt:hover {
+        border-color: var(--bd-glow);
+        color: var(--user);
+        transform: scale(1.08);
       }
-
-      /* ═══ Viewer Content ═══ */
-      #viewer {
+      /* Viewer */
+      #vw {
         display: none;
       }
-
-      /* ── Meta Panel ── */
-      .meta-panel {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
+      /* Meta */
+      .meta {
+        background: var(--bg2);
+        border: 1px solid var(--bd);
         border-radius: var(--radius);
-        padding: 24px;
-        margin-bottom: 20px;
-      }
-      .meta-panel h2 {
-        font-size: 1.3rem;
-        font-weight: 700;
-        margin-bottom: 4px;
-        word-break: break-word;
-      }
-      .meta-panel .subtitle {
-        color: var(--text-secondary);
-        font-size: 0.82rem;
+        padding: 20px;
         margin-bottom: 16px;
       }
-      .meta-grid {
+      .meta h2 {
+        font-family: "Fira Code", monospace;
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 2px;
+      }
+      .meta .sub {
+        color: var(--tx2);
+        font-size: 0.78rem;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .mg {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 8px;
       }
-      .meta-item {
-        background: var(--bg-secondary);
+      .mi {
+        background: var(--bg1);
         border-radius: var(--radius-sm);
-        padding: 12px 14px;
+        padding: 10px 12px;
       }
-      .meta-item .lbl {
-        font-size: 0.68rem;
-        color: var(--text-dim);
+      .mi .l {
+        font-size: 0.65rem;
+        color: var(--tx3);
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 3px;
+        margin-bottom: 2px;
+        font-weight: 500;
       }
-      .meta-item .val {
-        font-size: 1rem;
+      .mi .v {
+        font-size: 0.95rem;
         font-weight: 700;
-        font-family: "JetBrains Mono", monospace;
+        font-family: "Fira Code", monospace;
       }
-
-      /* ── Cost Row ── */
-      .cost-row {
+      /* Cost */
+      .cr {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        margin-bottom: 20px;
+        gap: 10px;
+        margin-bottom: 16px;
       }
       @media (max-width: 600px) {
-        .cost-row {
+        .cr {
           grid-template-columns: 1fr;
         }
       }
-      .cost-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
+      .cc {
+        background: var(--bg2);
+        border: 1px solid var(--bd);
         border-radius: var(--radius);
-        padding: 18px;
+        padding: 16px;
         text-align: center;
         position: relative;
         overflow: hidden;
       }
-      .cost-card::after {
+      .cc::after {
         content: "";
         position: absolute;
         bottom: 0;
@@ -340,981 +276,681 @@
         right: 0;
         height: 3px;
       }
-      .cost-card.uncached::after {
-        background: linear-gradient(135deg, #ef4444, #f97316);
+      .cc.un::after {
+        background: linear-gradient(90deg, var(--red), #f97316);
       }
-      .cost-card.cached::after {
-        background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      .cc.ca::after {
+        background: linear-gradient(90deg, var(--blue), #22d3ee);
       }
-      .cost-card.agp::after {
-        background: linear-gradient(135deg, #10b981, #34d399);
+      .cc.ag::after {
+        background: linear-gradient(90deg, var(--green), #34d399);
       }
-      .cost-card .clabel {
-        font-size: 0.72rem;
-        color: var(--text-secondary);
+      .cc .cl {
+        font-size: 0.68rem;
+        color: var(--tx2);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.4px;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
       }
-      .cost-card .cprice {
-        font-size: 1.6rem;
+      .cc .cv {
+        font-size: 1.5rem;
         font-weight: 800;
-        font-family: "JetBrains Mono", monospace;
+        font-family: "Fira Code", monospace;
       }
-      .cost-card.uncached .cprice {
-        color: var(--accent-red);
+      .cc.un .cv {
+        color: var(--red);
       }
-      .cost-card.cached .cprice {
-        color: var(--accent-blue);
+      .cc.ca .cv {
+        color: var(--blue);
       }
-      .cost-card.agp .cprice {
-        color: var(--accent-green);
+      .cc.ag .cv {
+        color: var(--green);
       }
-      .cost-card .csub {
-        font-size: 0.7rem;
-        color: var(--text-dim);
-        margin-top: 4px;
+      .cc .cs {
+        font-size: 0.66rem;
+        color: var(--tx3);
+        margin-top: 3px;
       }
-
-      /* ── Toolbar ── */
-      .toolbar {
+      /* Toolbar */
+      .tb {
+        position: sticky;
+        top: 0;
+        z-index: 100;
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
-        margin-bottom: 20px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
+        margin-bottom: 16px;
+        padding: 10px 14px;
         border-radius: var(--radius);
-        padding: 12px 16px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-bd);
       }
-      .toolbar .search-box {
+      .tb input {
         flex: 1;
-        min-width: 200px;
-        padding: 8px 14px;
+        min-width: 180px;
+        padding: 7px 12px;
         border-radius: var(--radius-sm);
-        border: 1px solid var(--border);
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-        font-size: 0.85rem;
-        font-family: inherit;
+        border: 1px solid var(--bd);
+        background: var(--bg1);
+        color: var(--tx1);
+        font-size: 0.82rem;
+        font-family: "Fira Sans", sans-serif;
         outline: none;
-        transition: border-color var(--transition);
+        transition: border-color var(--tr);
       }
-      .toolbar .search-box:focus {
-        border-color: var(--border-glow);
+      .tb input:focus {
+        border-color: var(--bd-glow);
       }
-      .toolbar .search-box::placeholder {
-        color: var(--text-dim);
+      .tb input::placeholder {
+        color: var(--tx3);
       }
-      .toolbar .btn {
-        padding: 7px 14px;
-        border-radius: var(--radius-xs);
-        border: 1px solid var(--border);
-        background: var(--bg-secondary);
-        color: var(--text-secondary);
-        font-size: 0.78rem;
-        font-family: inherit;
+      .btn {
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--bd);
+        background: var(--bg1);
+        color: var(--tx2);
+        font-size: 0.74rem;
+        font-family: "Fira Sans", sans-serif;
         font-weight: 500;
         cursor: pointer;
-        transition: all var(--transition);
+        transition: all var(--tr);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         white-space: nowrap;
       }
-      .toolbar .btn:hover {
-        border-color: var(--border-glow);
-        color: var(--text-primary);
+      .btn:hover {
+        border-color: var(--bd-glow);
+        color: var(--tx1);
       }
-      .toolbar .btn.active {
-        background: var(--accent-purple);
+      .btn.act {
+        background: var(--user);
         color: #fff;
-        border-color: var(--accent-purple);
+        border-color: var(--user);
       }
-      .filter-group {
+      .fg {
         display: flex;
-        gap: 4px;
+        gap: 3px;
       }
-      .search-count {
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        font-family: "JetBrains Mono", monospace;
+      .sc {
+        font-size: 0.72rem;
+        color: var(--tx3);
+        font-family: "Fira Code", monospace;
       }
-
-      /* ═══ Message Timeline ═══ */
-      .timeline {
+      /* Timeline */
+      .tl {
         position: relative;
       }
-
-      .msg-card {
+      /* Message cards */
+      .mc {
         border-radius: var(--radius);
-        padding: 16px 20px;
-        margin-bottom: 12px;
-        position: relative;
+        padding: 14px 18px;
+        margin-bottom: 10px;
         border: 1px solid;
-        transition: opacity var(--transition);
+        transition: opacity var(--tr);
         word-wrap: break-word;
         overflow-wrap: break-word;
+        position: relative;
+        border-left: 3px solid;
       }
-      .msg-card.filtered-out {
+      .mc.fo {
         display: none;
       }
-      .msg-card.search-miss {
-        opacity: 0.2;
+      .mc.sm {
+        opacity: 0.15;
       }
-      .msg-card.search-hit {
+      .mc.sh {
         opacity: 1;
       }
-
-      /* ── User ── */
-      .msg-card.user {
-        background: var(--bg-user);
-        border-color: var(--bg-user-border);
-        margin-right: 48px;
+      .mc.usr {
+        background: var(--user-bg);
+        border-color: var(--user-bd);
+        border-left-color: var(--user);
       }
-      .msg-card.user .msg-role {
-        color: var(--accent-purple);
+      .mc.ast {
+        background: var(--ai-bg);
+        border-color: var(--ai-bd);
+        border-left-color: var(--ai);
       }
-
-      /* ── Assistant ── */
-      .msg-card.assistant {
-        background: var(--bg-assistant);
-        border-color: var(--bg-assistant-border);
-        margin-left: 48px;
+      .mc.cpk {
+        background: var(--cp-bg);
+        border-color: var(--cp-bd);
+        border-left-color: var(--amber);
+        padding: 8px 16px;
+        max-width: 680px;
+        margin: 14px auto;
       }
-      .msg-card.assistant .msg-role {
-        color: var(--accent-cyan);
-      }
-
-      /* ── Checkpoint ── */
-      .msg-card.checkpoint {
-        background: var(--bg-checkpoint);
-        border-color: var(--bg-checkpoint-border);
-        padding: 10px 18px;
-        text-align: center;
-        max-width: 700px;
-        margin: 16px auto;
-      }
-
-      /* ── Role header ── */
-      .msg-header {
+      /* Header */
+      .mh {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: 7px;
+        margin-bottom: 6px;
         flex-wrap: wrap;
       }
-      .msg-role {
+      .mr {
         font-weight: 700;
-        font-size: 0.78rem;
+        font-size: 0.74rem;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
+        letter-spacing: 0.5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
       }
-      .msg-step {
-        font-size: 0.68rem;
-        color: var(--text-dim);
-        font-family: "JetBrains Mono", monospace;
+      .mc.usr .mr {
+        color: var(--user);
       }
-      .msg-model-tag {
+      .mc.ast .mr {
+        color: var(--ai);
+      }
+      .ms {
         font-size: 0.65rem;
-        padding: 2px 8px;
-        border-radius: 10px;
-        background: rgba(99, 102, 241, 0.1);
-        color: var(--accent-purple);
+        color: var(--tx3);
+        font-family: "Fira Code", monospace;
+      }
+      .mt {
+        font-size: 0.62rem;
+        padding: 2px 7px;
+        border-radius: 8px;
+        background: rgba(129, 140, 248, 0.1);
+        color: var(--user);
         font-weight: 500;
       }
-
-      /* ── Content ── */
-      .msg-content {
-        font-size: 0.9rem;
+      .mbi {
+        font-size: 0.67rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      /* Content */
+      .mct {
+        font-size: 0.88rem;
         line-height: 1.7;
-        color: var(--text-primary);
+        color: var(--tx1);
       }
-      .msg-content p {
-        margin-bottom: 0.8em;
+      .mct p {
+        margin-bottom: 0.7em;
       }
-      .msg-content p:last-child {
+      .mct p:last-child {
         margin-bottom: 0;
       }
-      .msg-content h1,
-      .msg-content h2,
-      .msg-content h3,
-      .msg-content h4 {
-        margin-top: 1em;
-        margin-bottom: 0.5em;
+      .mct h2 {
+        font-size: 1.1rem;
+        margin: 0.8em 0 0.4em;
         font-weight: 700;
       }
-      .msg-content h2 {
-        font-size: 1.15rem;
+      .mct h3 {
+        font-size: 1rem;
+        margin: 0.7em 0 0.3em;
+        font-weight: 600;
       }
-      .msg-content h3 {
-        font-size: 1.05rem;
+      .mct ul,
+      .mct ol {
+        padding-left: 1.4em;
+        margin-bottom: 0.7em;
       }
-      .msg-content ul,
-      .msg-content ol {
-        padding-left: 1.5em;
-        margin-bottom: 0.8em;
+      .mct li {
+        margin-bottom: 0.25em;
       }
-      .msg-content li {
-        margin-bottom: 0.3em;
-      }
-      .msg-content code {
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.82em;
-        padding: 2px 6px;
+      .mct code {
+        font-family: "Fira Code", monospace;
+        font-size: 0.8em;
+        padding: 2px 5px;
         border-radius: 4px;
         background: var(--code-bg);
       }
-      .msg-content pre {
-        border-radius: var(--radius-xs);
-        padding: 14px;
-        margin: 0.8em 0;
+      .mct pre {
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        margin: 0.7em 0;
         overflow-x: auto;
         background: var(--code-bg) !important;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         line-height: 1.5;
       }
-      .msg-content pre code {
+      .mct pre code {
         padding: 0;
-        background: transparent;
+        background: transparent !important;
         font-size: inherit;
       }
-      .msg-content table {
+      .mct table {
         width: 100%;
         border-collapse: collapse;
-        margin: 0.8em 0;
-        font-size: 0.85rem;
+        margin: 0.7em 0;
+        font-size: 0.82rem;
       }
-      .msg-content th,
-      .msg-content td {
-        border: 1px solid var(--border);
-        padding: 7px 10px;
+      .mct th,
+      .mct td {
+        border: 1px solid var(--bd);
+        padding: 6px 9px;
         text-align: left;
       }
-      .msg-content th {
-        background: var(--bg-secondary);
+      .mct th {
+        background: var(--bg1);
         font-weight: 600;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
       }
-      .msg-content blockquote {
-        border-left: 3px solid var(--accent-purple);
-        padding: 8px 16px;
-        margin: 0.8em 0;
-        background: var(--bg-secondary);
-        border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
-        color: var(--text-secondary);
+      .mct blockquote {
+        border-left: 3px solid var(--user);
+        padding: 6px 14px;
+        margin: 0.7em 0;
+        background: var(--bg1);
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        color: var(--tx2);
       }
-      .msg-content a {
-        color: var(--accent-blue);
+      .mct a {
+        color: var(--blue);
         text-decoration: none;
       }
-      .msg-content a:hover {
+      .mct a:hover {
         text-decoration: underline;
       }
-      .msg-content img {
-        max-width: 100%;
-        border-radius: var(--radius-xs);
-      }
-      .msg-content strong {
+      .mct strong {
         font-weight: 600;
       }
-
-      /* ── Truncation ── */
-      .content-truncated {
+      .mct img {
+        max-width: 100%;
+        border-radius: var(--radius-sm);
+      }
+      /* Truncation */
+      .trunc .mct {
+        max-height: 380px;
+        overflow: hidden;
         position: relative;
       }
-      .content-truncated .msg-content {
-        max-height: 400px;
-        overflow: hidden;
-      }
-      .content-truncated .msg-content::after {
+      .trunc .mct::after {
         content: "";
         position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
-        height: 60px;
-        background: linear-gradient(transparent, var(--bg-assistant));
-        pointer-events: none;
+        height: 50px;
+        background: linear-gradient(transparent, var(--bg2));
       }
-      .msg-card.user .content-truncated .msg-content::after {
-        background: linear-gradient(transparent, var(--bg-user));
+      .mc.usr .trunc .mct::after {
+        background: linear-gradient(transparent, rgba(129, 140, 248, 0.08));
       }
-      .expand-btn {
+      .mc.ast .trunc .mct::after {
+        background: linear-gradient(transparent, rgba(34, 211, 238, 0.05));
+      }
+      .xb {
         display: block;
         width: 100%;
         margin-top: 4px;
-        padding: 6px;
+        padding: 5px;
         background: transparent;
-        border: 1px dashed var(--border);
-        border-radius: var(--radius-xs);
-        color: var(--accent-purple);
-        font-size: 0.78rem;
-        font-family: inherit;
+        border: 1px dashed var(--bd);
+        border-radius: var(--radius-sm);
+        color: var(--user);
+        font-size: 0.75rem;
+        font-family: "Fira Sans", sans-serif;
         cursor: pointer;
-        transition: all var(--transition);
+        transition: all var(--tr);
       }
-      .expand-btn:hover {
-        background: var(--bg-secondary);
+      .xb:hover {
+        background: var(--bg1);
       }
-
-      /* ═══ Collapsible Panels ═══ */
-      .panel {
-        margin-top: 10px;
+      /* Panels */
+      .pn {
+        margin-top: 8px;
         border: 1px solid;
         border-radius: var(--radius-sm);
         overflow: hidden;
       }
-      .panel-header {
+      .ph {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
+        gap: 5px;
+        padding: 7px 12px;
         cursor: pointer;
-        font-size: 0.78rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        transition: background var(--transition);
+        transition: background var(--tr);
         user-select: none;
       }
-      .panel-header:hover {
-        filter: brightness(1.1);
+      .ph:hover {
+        filter: brightness(1.08);
       }
-      .panel-header .arrow {
-        font-size: 0.65rem;
-        transition: transform var(--transition);
+      .ph .ar {
         margin-left: auto;
-        color: var(--text-dim);
+        transition: transform var(--tr);
+        color: var(--tx3);
       }
-      .panel-header.open .arrow {
+      .ph.op .ar {
         transform: rotate(180deg);
       }
-      .panel-body {
+      .pb {
         display: none;
-        padding: 12px 14px;
-        font-size: 0.84rem;
+        padding: 10px 12px;
+        font-size: 0.82rem;
         line-height: 1.6;
-        max-height: 500px;
+        max-height: 480px;
         overflow-y: auto;
       }
-      .panel-body.open {
+      .pb.op {
         display: block;
       }
-
-      /* Thinking panel */
-      .panel.thinking {
-        border-color: var(--bg-thinking-border);
+      .pn.tk {
+        border-color: var(--think-bd);
       }
-      .panel.thinking .panel-header {
-        background: var(--bg-thinking);
-        color: var(--accent-amber);
+      .pn.tk .ph {
+        background: var(--think-bg);
+        color: var(--amber);
       }
-      .panel.thinking .panel-body {
-        background: var(--bg-thinking);
-        color: var(--text-secondary);
+      .pn.tk .pb {
+        background: var(--think-bg);
+        color: var(--tx2);
         font-style: italic;
         white-space: pre-wrap;
       }
-
-      /* Tool panel */
-      .panel.tool {
-        border-color: var(--bg-tool-border);
+      .pn.tl {
+        border-color: var(--tool-bd);
       }
-      .panel.tool .panel-header {
-        background: var(--bg-tool);
-        color: var(--accent-blue);
+      .pn.tl .ph {
+        background: var(--tool-bg);
+        color: var(--blue);
       }
-      .panel.tool .panel-body {
-        background: var(--bg-tool);
+      .pn.tl .pb {
+        background: var(--tool-bg);
       }
-      .tool-call {
-        margin-bottom: 10px;
-        padding: 8px 10px;
-        background: var(--bg-secondary);
-        border-radius: var(--radius-xs);
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.76rem;
+      .tc {
+        margin-bottom: 8px;
+        padding: 7px 9px;
+        background: var(--bg1);
+        border-radius: var(--radius-sm);
+        font-family: "Fira Code", monospace;
+        font-size: 0.73rem;
         line-height: 1.5;
       }
-      .tool-call:last-child {
+      .tc:last-child {
         margin-bottom: 0;
       }
-      .tool-call .tool-name {
+      .tc .tn {
         font-weight: 700;
-        color: var(--accent-blue);
-        margin-bottom: 4px;
+        color: var(--blue);
+        margin-bottom: 3px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
       }
-      .tool-call .tool-args {
-        color: var(--text-secondary);
+      .tc .ta {
+        color: var(--tx2);
         white-space: pre-wrap;
         word-break: break-all;
-        max-height: 200px;
+        max-height: 180px;
         overflow-y: auto;
       }
-
-      /* ── Checkpoint  ── */
-      .checkpoint-info {
+      /* Checkpoint */
+      .cpi {
         display: flex;
-        gap: 20px;
+        gap: 16px;
         justify-content: center;
         align-items: center;
         flex-wrap: wrap;
-        font-size: 0.78rem;
-        color: var(--text-secondary);
-        font-family: "JetBrains Mono", monospace;
+        font-size: 0.75rem;
+        color: var(--tx2);
+        font-family: "Fira Code", monospace;
       }
-      .checkpoint-info .cp-label {
+      .cpi .cpl {
         font-weight: 700;
-        color: var(--accent-amber);
-        font-family: "Inter", sans-serif;
+        color: var(--amber);
+        font-family: "Fira Sans", sans-serif;
         text-transform: uppercase;
-        font-size: 0.68rem;
-        letter-spacing: 0.8px;
+        font-size: 0.65rem;
+        letter-spacing: 0.7px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
       }
-      .checkpoint-info .cp-stat span {
+      .cpi .cps span {
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--tx1);
       }
-
-      /* ── Search highlight ── */
-      mark.search-hl {
-        background: var(--search-highlight);
-        color: inherit;
-        padding: 1px 2px;
-        border-radius: 2px;
-      }
-
-      /* ── Footer ── */
+      /* Footer */
       footer {
         text-align: center;
-        margin-top: 40px;
-        padding: 20px;
-        color: var(--text-dim);
-        font-size: 0.75rem;
+        margin-top: 36px;
+        padding: 18px;
+        color: var(--tx3);
+        font-size: 0.72rem;
         line-height: 1.7;
       }
       footer a {
-        color: var(--accent-purple);
+        color: var(--user);
         text-decoration: none;
       }
-      footer a:hover {
-        text-decoration: underline;
-      }
-
-      /* ═══ Responsive ═══ */
       @media (max-width: 640px) {
-        .msg-card.user {
-          margin-right: 16px;
-        }
-        .msg-card.assistant {
-          margin-left: 16px;
-        }
         .container {
-          padding: 16px 12px;
+          padding: 12px 10px;
         }
-        .app-header h1 {
-          font-size: 1.6rem;
+        .hdr h1 {
+          font-size: 1.4rem;
         }
       }
     </style>
     <script>
       (function () {
-        const saved = localStorage.getItem("agp-viewer-theme");
-        const prefersDark = window.matchMedia(
-          "(prefers-color-scheme: dark)",
-        ).matches;
+        var s = localStorage.getItem("agp-vt"),
+          d = matchMedia("(prefers-color-scheme:dark)").matches;
         document.documentElement.setAttribute(
           "data-theme",
-          saved || (prefersDark ? "dark" : "light"),
+          s || (d ? "dark" : "light"),
         );
       })();
     </script>
   </head>
   <body>
-    <button class="theme-toggle" id="themeToggle" title="切换亮色/暗色模式">
-      🌙
+    <button class="tt" id="tt" title="Toggle theme">
+      <i data-lucide="moon" style="width: 18px; height: 18px"></i>
     </button>
     <div class="container">
-      <header class="app-header">
-        <h1><span class="emoji">💬</span> AGP Conversation Viewer</h1>
+      <header class="hdr">
+        <h1>AGP Conversation Viewer</h1>
         <p>
-          上传 AGP 导出的对话 JSON，可视化完整对话内容。<br />查看 AI
-          推理过程、工具调用、Token 统计和成本分析。
+          上传 AGP 导出的对话 JSON，可视化完整对话内容。查看 AI
+          推理过程、工具调用和 Token 统计。
         </p>
-        <span class="badge">🔒 完全本地解析 · 不上传任何数据</span>
+        <span class="badge"
+          ><i data-lucide="lock" style="width: 12px; height: 12px"></i>
+          完全本地解析 · 不上传任何数据</span
+        >
       </header>
-
-      <div class="dropzone" id="dropzone">
-        <span class="dropzone-icon">📂</span>
+      <div class="dz" id="dz">
+        <i
+          data-lucide="file-json"
+          style="width: 40px; height: 40px"
+          class="icn"
+        ></i>
         <h3>拖放 JSON 文件到这里</h3>
         <p>或点击选择 AGP 对话导出文件</p>
-        <p class="hint">支持 AGP ConversationExport JSON 格式</p>
-        <input type="file" id="fileInput" accept=".json" />
+        <input type="file" id="fi" accept=".json" />
       </div>
-
-      <div id="viewer">
-        <div id="metaPanel" class="meta-panel"></div>
-        <div id="costRow" class="cost-row"></div>
-        <div class="toolbar" id="toolbar">
-          <input
-            class="search-box"
-            id="searchBox"
-            type="text"
-            placeholder="🔍 搜索对话内容…"
-          />
-          <span class="search-count" id="searchCount"></span>
-          <div class="filter-group">
-            <button
-              class="btn active"
-              data-filter="all"
-              onclick="setFilter('all', this)"
-            >
+      <div id="vw">
+        <div id="mp" class="meta"></div>
+        <div id="cro" class="cr"></div>
+        <div class="tb" id="tb">
+          <input id="sb" type="text" placeholder="搜索对话内容…" />
+          <span class="sc" id="scc"></span>
+          <div class="fg">
+            <button class="btn act" data-f="all" onclick="sf('all', this)">
               全部
             </button>
-            <button
-              class="btn"
-              data-filter="user"
-              onclick="setFilter('user', this)"
-            >
-              👤 用户
+            <button class="btn" data-f="user" onclick="sf('user', this)">
+              <i data-lucide="user" style="width: 13px; height: 13px"></i> 用户
             </button>
             <button
               class="btn"
-              data-filter="assistant"
-              onclick="setFilter('assistant', this)"
+              data-f="assistant"
+              onclick="sf('assistant', this)"
             >
-              🤖 AI
+              <i data-lucide="bot" style="width: 13px; height: 13px"></i> AI
             </button>
             <button
               class="btn"
-              data-filter="checkpoint"
-              onclick="setFilter('checkpoint', this)"
+              data-f="checkpoint"
+              onclick="sf('checkpoint', this)"
             >
-              📊 检查点
+              <i data-lucide="activity" style="width: 13px; height: 13px"></i>
+              检查点
             </button>
           </div>
-          <button
-            class="btn"
-            id="toggleThinkingBtn"
-            onclick="toggleAllPanels('thinking')"
-          >
-            🧠 展开推理
+          <button class="btn" id="ttkb" onclick="tap('tk')">
+            <i data-lucide="brain" style="width: 13px; height: 13px"></i> 推理
           </button>
-          <button
-            class="btn"
-            id="toggleToolsBtn"
-            onclick="toggleAllPanels('tool')"
-          >
-            🔧 展开工具
+          <button class="btn" id="ttlb" onclick="tap('tl')">
+            <i data-lucide="wrench" style="width: 13px; height: 13px"></i> 工具
           </button>
         </div>
-        <div class="timeline" id="timeline"></div>
+        <div class="tl" id="tl"></div>
       </div>
-
       <footer>
-        <p>
-          AGP Conversation Viewer by <a href="#">AG Pulse</a><br />
-          完全本地解析 · Markdown 渲染 via
-          <a href="https://marked.js.org/" target="_blank">marked.js</a> +
-          <a href="https://highlightjs.org/" target="_blank">highlight.js</a>
-        </p>
+        AGP Conversation Viewer by <a href="#">AG Pulse</a> · Markdown via
+        <a href="https://marked.js.org/" target="_blank">marked.js</a>
       </footer>
     </div>
-
     <script>
-      // ═══ Globals ═══
-      let currentData = null;
-      let currentFilter = "all";
-      let allPanelStates = { thinking: false, tool: false };
-
-      // ═══ Pricing (from cost-calculator) ═══
-      const PRICING = {
+      let D = null,
+        CF = "all",
+        PS = { tk: false, tl: false };
+      const PR = {
         MODEL_PLACEHOLDER_M26: {
-          name: "Claude Opus 4.6",
-          in: 5.0,
-          out: 25.0,
-          cacheWrite: 6.25,
-          cacheRead: 0.5,
+          n: "Claude Opus 4.6",
+          i: 5,
+          o: 25,
+          cw: 6.25,
+          cr: 0.5,
         },
         MODEL_PLACEHOLDER_M35: {
-          name: "Claude Sonnet 4.6",
-          in: 3.0,
-          out: 15.0,
-          cacheWrite: 3.75,
-          cacheRead: 0.3,
+          n: "Claude Sonnet 4.6",
+          i: 3,
+          o: 15,
+          cw: 3.75,
+          cr: 0.3,
         },
         MODEL_PLACEHOLDER_M37: {
-          name: "Gemini 3.1 Pro (H)",
-          in: 1.25,
-          out: 10.0,
-          cacheWrite: 1.5625,
-          cacheRead: 0.3125,
+          n: "Gemini 3.1 Pro",
+          i: 1.25,
+          o: 10,
+          cw: 1.5625,
+          cr: 0.3125,
         },
         MODEL_PLACEHOLDER_M36: {
-          name: "Gemini 3.1 Pro (L)",
-          in: 1.25,
-          out: 10.0,
-          cacheWrite: 1.5625,
-          cacheRead: 0.3125,
+          n: "Gemini 3.1 Pro",
+          i: 1.25,
+          o: 10,
+          cw: 1.5625,
+          cr: 0.3125,
         },
         MODEL_PLACEHOLDER_M18: {
-          name: "Gemini 3 Flash",
-          in: 0.15,
-          out: 0.6,
-          cacheWrite: 0.1875,
-          cacheRead: 0.0375,
+          n: "Gemini Flash",
+          i: 0.15,
+          o: 0.6,
+          cw: 0.19,
+          cr: 0.04,
         },
         MODEL_PLACEHOLDER_M47: {
-          name: "Gemini 3 Flash",
-          in: 0.15,
-          out: 0.6,
-          cacheWrite: 0.1875,
-          cacheRead: 0.0375,
+          n: "Gemini Flash",
+          i: 0.15,
+          o: 0.6,
+          cw: 0.19,
+          cr: 0.04,
         },
         MODEL_GOOGLE_GEMINI_2_5_FLASH_LITE: {
-          name: "Gemini Flash Lite",
-          in: 0.075,
-          out: 0.3,
-          cacheWrite: 0.01,
-          cacheRead: 0.01,
+          n: "Flash Lite",
+          i: 0.075,
+          o: 0.3,
+          cw: 0.01,
+          cr: 0.01,
         },
-        MODEL_OPENAI_GPT_OSS_120B_MEDIUM: {
-          name: "GPT-OSS 120B",
-          in: 1.25,
-          out: 10.0,
-          cacheWrite: 1.25,
-          cacheRead: 0.625,
-        },
-        DEFAULT: {
-          name: "Unknown",
-          in: 1.25,
-          out: 10.0,
-          cacheWrite: 1.5625,
-          cacheRead: 0.3125,
-        },
+        DEFAULT: { n: "Unknown", i: 1.25, o: 10, cw: 1.56, cr: 0.31 },
       };
-      function getPricing(m) {
-        return PRICING[m] || PRICING.DEFAULT;
+      function gp(m) {
+        return PR[m] || PR.DEFAULT;
       }
-      function estimateTokens(t) {
+      function et(t) {
         if (!t) return 0;
         let a = 0,
           n = 0;
         for (let i = 0; i < t.length; i++) t.charCodeAt(i) < 128 ? a++ : n++;
         return Math.ceil(a / 4 + n / 1.5);
       }
-
-      // ═══ Cost Calculation (simplified from cost-calculator) ═══
-      function calcCosts(data) {
-        const pricing = getPricing(data.model);
-        const BASE = 1500;
-        let ctx = BASE,
-          prevSubIn = 0,
-          firstSub = true,
-          postComp = false;
-        let prevCpIn = -1;
-        let totalUncached = 0,
-          totalCached = 0;
-
-        for (const msg of data.messages || []) {
-          if (msg.type === "checkpoint") {
-            const cpIn = msg.tokens?.input || 0;
-            if (cpIn > 0) {
-              if (prevCpIn > 0 && cpIn < prevCpIn && prevCpIn - cpIn > 5000) {
-                ctx = cpIn;
-                postComp = true;
+      function cc(d) {
+        const p = gp(d.model),
+          B = 1500;
+        let ctx = B,
+          psi = 0,
+          fs = true,
+          pc = false,
+          pci = -1,
+          tu = 0,
+          tc = 0;
+        for (const m of d.messages || []) {
+          if (m.type === "checkpoint") {
+            const ci = m.tokens?.input || 0;
+            if (ci > 0) {
+              if (pci > 0 && ci < pci && pci - ci > 5000) {
+                ctx = ci;
+                pc = true;
               } else {
-                ctx = Math.max(ctx, cpIn);
+                ctx = Math.max(ctx, ci);
               }
-              prevCpIn = cpIn;
+              pci = ci;
             }
             continue;
           }
-          if (msg.type === "user") {
-            ctx += estimateTokens(msg.content);
-          } else if (msg.type === "assistant") {
-            let out = estimateTokens(msg.content || "");
-            if (msg.toolCalls)
-              for (const tc of msg.toolCalls)
-                out += estimateTokens((tc.name || "") + (tc.args || ""));
-            if (msg.thinking) out += estimateTokens(msg.thinking);
-
-            const outCost = (out / 1e6) * pricing.out;
-            const uncIn = (ctx / 1e6) * pricing.in;
-            let cacIn;
-            if (firstSub || postComp) {
-              cacIn = (ctx / 1e6) * pricing.cacheWrite;
+          if (m.type === "user") {
+            ctx += et(m.content);
+          } else if (m.type === "assistant") {
+            let o = et(m.content || "");
+            if (m.toolCalls)
+              for (const t of m.toolCalls)
+                o += et((t.name || "") + (t.args || ""));
+            if (m.thinking) o += et(m.thinking);
+            const oc = (o / 1e6) * p.o,
+              ui = (ctx / 1e6) * p.i;
+            let ci;
+            if (fs || pc) {
+              ci = (ctx / 1e6) * p.cw;
             } else {
-              const rd = Math.max(0, prevSubIn);
-              const wr = Math.max(0, ctx - prevSubIn);
-              cacIn =
-                (rd / 1e6) * pricing.cacheRead +
-                (wr / 1e6) * pricing.cacheWrite;
+              ci =
+                (Math.max(0, psi) / 1e6) * p.cr +
+                (Math.max(0, ctx - psi) / 1e6) * p.cw;
             }
-            totalUncached += uncIn + outCost;
-            totalCached += cacIn + outCost;
-            prevSubIn = ctx;
-            firstSub = false;
-            if (postComp) postComp = false;
-            ctx += out;
+            tu += ui + oc;
+            tc += ci + oc;
+            psi = ctx;
+            fs = false;
+            if (pc) pc = false;
+            ctx += o;
           }
         }
-        return {
-          totalUncached,
-          totalCached,
-          agpEstimate: data.usage?.estimatedCost || 0,
-        };
+        return { tu, tc, ae: d.usage?.estimatedCost || 0 };
       }
-
-      // ═══ Formatting ═══
-      function fmt$(n) {
+      function f$(n) {
         return n < 0.01 && n > 0 ? "<$0.01" : "$" + n.toFixed(2);
       }
-      function fmtK(n) {
+      function fK(n) {
         return n >= 1e6
           ? (n / 1e6).toFixed(1) + "M"
           : n >= 1e3
             ? (n / 1e3).toFixed(1) + "k"
             : String(Math.round(n));
       }
-      function escH(s) {
+      function eH(s) {
         const d = document.createElement("div");
         d.textContent = s || "";
         return d.innerHTML;
       }
-      function fmtTime(iso) {
-        if (!iso) return "—";
-        try {
-          const d = new Date(iso);
-          return d.toLocaleString("zh-CN", {
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          });
-        } catch {
-          return iso;
-        }
-      }
-
-      // ═══ Markdown Rendering ═══
-      function renderMd(text) {
-        if (!text) return "";
-        try {
-          marked.setOptions({
-            breaks: true,
-            gfm: true,
-            highlight: function (code, lang) {
-              if (lang && hljs.getLanguage(lang)) {
-                return hljs.highlight(code, { language: lang }).value;
-              }
-              return hljs.highlightAuto(code).value;
-            },
-          });
-          return marked.parse(text);
-        } catch {
-          return "<p>" + escH(text).replace(/\n/g, "<br>") + "</p>";
-        }
-      }
-
-      // ═══ Model display name ═══
-      function getModelName(modelId) {
-        const p = PRICING[modelId];
-        return p
-          ? p.name
-          : modelId?.replace(/^MODEL_/, "").replace(/_/g, " ") || "Unknown";
-      }
-
-      // ═══ Render the viewer ═══
-      function renderViewer(data) {
-        currentData = data;
-        document.getElementById("viewer").style.display = "block";
-        document.getElementById("dropzone").style.display = "none";
-
-        // ── Meta Panel ──
-        const costs = calcCosts(data);
-        const usage = data.usage || {};
-        const msgs = data.messages || [];
-        const userMsgs = msgs.filter((m) => m.type === "user").length;
-        const assistantMsgs = msgs.filter((m) => m.type === "assistant").length;
-        const checkpoints = msgs.filter((m) => m.type === "checkpoint").length;
-
-        const duration =
-          data.createdTime && data.lastModifiedTime
-            ? (() => {
-                const ms =
-                  new Date(data.lastModifiedTime) - new Date(data.createdTime);
-                const mins = Math.round(ms / 60000);
-                return mins >= 60
-                  ? Math.floor(mins / 60) + "h " + (mins % 60) + "m"
-                  : mins + "m";
-              })()
-            : "—";
-
-        document.getElementById("metaPanel").innerHTML = `
-          <h2>${escH(data.title || data.cascadeId || "Untitled")}</h2>
-          <div class="subtitle">${escH(data.modelDisplayName || getModelName(data.model))} · ${fmtTime(data.createdTime)} → ${fmtTime(data.lastModifiedTime)} · ${duration}</div>
-          <div class="meta-grid">
-            <div class="meta-item"><div class="lbl">对话轮次</div><div class="val">${userMsgs}</div></div>
-            <div class="meta-item"><div class="lbl">AI 回复数</div><div class="val">${assistantMsgs}</div></div>
-            <div class="meta-item"><div class="lbl">检查点</div><div class="val">${checkpoints}</div></div>
-            <div class="meta-item"><div class="lbl">总步骤</div><div class="val">${data.stepCount || msgs.length}</div></div>
-            <div class="meta-item"><div class="lbl">上下文使用</div><div class="val">${fmtK(usage.contextUsed || usage.totalInputTokens || 0)}</div></div>
-            <div class="meta-item"><div class="lbl">压缩</div><div class="val" style="color:${usage.compressionDetected ? "var(--accent-amber)" : "var(--text-dim)"}">${usage.compressionDetected ? "检测到" : "无"}</div></div>
-          </div>
-        `;
-
-        // ── Cost Row ──
-        document.getElementById("costRow").innerHTML = `
-          <div class="cost-card uncached">
-            <div class="clabel">💥 无缓存 API</div>
-            <div class="cprice">${fmt$(costs.totalUncached)}</div>
-            <div class="csub">中转站 / 随机轮询</div>
-          </div>
-          <div class="cost-card cached">
-            <div class="clabel">✨ 有缓存 API</div>
-            <div class="cprice">${fmt$(costs.totalCached)}</div>
-            <div class="csub">官方 API + Cache</div>
-          </div>
-          <div class="cost-card agp">
-            <div class="clabel">📝 AGP 估算</div>
-            <div class="cprice">${fmt$(costs.agpEstimate)}</div>
-            <div class="csub">Checkpoint 快照</div>
-          </div>
-        `;
-
-        // ── Timeline ──
-        renderTimeline(msgs);
-      }
-
-      function renderTimeline(msgs) {
-        const timeline = document.getElementById("timeline");
-        let html = "";
-
-        for (let i = 0; i < msgs.length; i++) {
-          const msg = msgs[i];
-          const msgType = msg.type || "unknown";
-
-          if (msgType === "checkpoint") {
-            html += renderCheckpoint(msg, i);
-          } else if (msgType === "user") {
-            html += renderUserMsg(msg, i);
-          } else if (msgType === "assistant") {
-            html += renderAssistantMsg(msg, i);
-          }
-        }
-
-        timeline.innerHTML = html;
-
-        // Apply syntax highlighting to any remaining code blocks
-        timeline.querySelectorAll("pre code").forEach((el) => {
-          try {
-            hljs.highlightElement(el);
-          } catch {}
-        });
-      }
-
-      function renderCheckpoint(msg, idx) {
-        const t = msg.tokens || {};
-        return `<div class="msg-card checkpoint" data-type="checkpoint" data-idx="${idx}">
-          <div class="checkpoint-info">
-            <span class="cp-label">📊 Checkpoint</span>
-            <span class="cp-stat">Input: <span>${fmtK(t.input || 0)}</span></span>
-            <span class="cp-stat">Output: <span>${fmtK(t.output || 0)}</span></span>
-            ${t.cacheRead ? `<span class="cp-stat">Cache: <span>${fmtK(t.cacheRead)}</span></span>` : ""}
-            <span class="msg-step">step ${msg.stepIndex}</span>
-          </div>
-        </div>`;
-      }
-
-      function renderUserMsg(msg, idx) {
-        const content = msg.content || "";
-        const needsTruncate = content.length > 2000;
-        const displayContent = needsTruncate
-          ? content.slice(0, 2000) + "\n\n..."
-          : content;
-
-        return `<div class="msg-card user" data-type="user" data-idx="${idx}" data-text="${escAttr(content)}">
-          <div class="msg-header">
-            <span class="msg-role">👤 用户</span>
-            <span class="msg-step">step ${msg.stepIndex}</span>
-          </div>
-          <div class="${needsTruncate ? "content-truncated" : ""}" id="wrap-${idx}">
-            <div class="msg-content">${renderMd(displayContent)}</div>
-          </div>
-          ${needsTruncate ? `<button class="expand-btn" onclick="expandContent(${idx}, 'user')">展开完整内容 (${content.length} 字符)</button>` : ""}
-        </div>`;
-      }
-
-      function renderAssistantMsg(msg, idx) {
-        const content = msg.content || "";
-        const needsTruncate = content.length > 3000;
-        const displayContent = needsTruncate
-          ? content.slice(0, 3000) + "\n\n..."
-          : content;
-        const hasThinking = !!msg.thinking;
-        const hasTools = msg.toolCalls && msg.toolCalls.length > 0;
-
-        let panels = "";
-
-        // Thinking panel
-        if (hasThinking) {
-          panels += `<div class="panel thinking">
-            <div class="panel-header" onclick="togglePanel(this)">
-              🧠 AI 推理过程 <span style="color:var(--text-dim);font-weight:400;font-size:0.72rem">(${msg.thinking.length} 字符)</span>
-              <span class="arrow">▼</span>
-            </div>
-            <div class="panel-body thinking-panel">${escH(msg.thinking)}</div>
-          </div>`;
-        }
-
-        // Tool calls panel
-        if (hasTools) {
-          let toolsHtml = "";
-          for (const tc of msg.toolCalls) {
-            let argsDisplay = tc.args || "";
-            try {
-              const parsed = JSON.parse(argsDisplay);
-              argsDisplay = JSON.stringify(parsed, null, 2);
-            } catch {}
-            toolsHtml += `<div class="tool-call">
-              <div class="tool-name">🔧 ${escH(tc.name)}</div>
-              <div class="tool-args">${escH(argsDisplay)}</div>
-            </div>`;
-          }
-          panels += `<div class="panel tool">
-            <div class="panel-header" onclick="togglePanel(this)">
-              🔧 工具调用 <span style="color:var(--text-dim);font-weight:400;font-size:0.72rem">(${msg.toolCalls.length} 个)</span>
-              <span class="arrow">▼</span>
-            </div>
-            <div class="panel-body tool-panel">${toolsHtml}</div>
-          </div>`;
-        }
-
-        const modelTag = msg.model
-          ? `<span class="msg-model-tag">${getModelName(msg.model)}</span>`
-          : "";
-
-        return `<div class="msg-card assistant" data-type="assistant" data-idx="${idx}" data-text="${escAttr(content + (msg.thinking || ""))}">
-          <div class="msg-header">
-            <span class="msg-role">🤖 AI</span>
-            <span class="msg-step">step ${msg.stepIndex}</span>
-            ${modelTag}
-            ${hasThinking ? '<span style="font-size:0.7rem;color:var(--accent-amber)">🧠</span>' : ""}
-            ${hasTools ? '<span style="font-size:0.7rem;color:var(--accent-blue)">🔧×' + msg.toolCalls.length + "</span>" : ""}
-          </div>
-          ${
-            content
-              ? `<div class="${needsTruncate ? "content-truncated" : ""}" id="wrap-${idx}">
-            <div class="msg-content">${renderMd(displayContent)}</div>
-          </div>
-          ${needsTruncate ? `<button class="expand-btn" onclick="expandContent(${idx}, 'assistant')">展开完整内容 (${content.length} 字符)</button>` : ""}`
-              : ""
-          }
-          ${panels}
-        </div>`;
-      }
-
-      function escAttr(s) {
+      function eA(s) {
         return (s || "")
           .replace(/&/g, "&amp;")
           .replace(/"/g, "&quot;")
@@ -1322,180 +958,270 @@
           .replace(/>/g, "&gt;")
           .slice(0, 500);
       }
+      function fT(iso) {
+        if (!iso) return "—";
+        try {
+          return new Date(iso).toLocaleString("zh-CN", {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch {
+          return iso;
+        }
+      }
+      function rM(t) {
+        if (!t) return "";
+        try {
+          marked.setOptions({
+            breaks: true,
+            gfm: true,
+            highlight: (c, l) => {
+              if (l && hljs.getLanguage(l))
+                return hljs.highlight(c, { language: l }).value;
+              return hljs.highlightAuto(c).value;
+            },
+          });
+          return marked.parse(t);
+        } catch {
+          return "<p>" + eH(t).replace(/\n/g, "<br>") + "</p>";
+        }
+      }
+      function gN(m) {
+        const p = PR[m];
+        return p
+          ? p.n
+          : m?.replace(/^MODEL_/, "").replace(/_/g, " ") || "Unknown";
+      }
+      function lci(name, size) {
+        return `<i data-lucide="${name}" style="width:${size}px;height:${size}px"></i>`;
+      }
 
-      // ═══ Interactions ═══
-
-      // Expand truncated content
-      function expandContent(idx, type) {
-        const msg = currentData.messages[idx];
-        const wrap = document.getElementById("wrap-" + idx);
-        if (!wrap) return;
-        wrap.classList.remove("content-truncated");
-        wrap.querySelector(".msg-content").innerHTML = renderMd(msg.content);
-        // Re-highlight code
-        wrap.querySelectorAll("pre code").forEach((el) => {
+      function rv(data) {
+        D = data;
+        document.getElementById("vw").style.display = "block";
+        document.getElementById("dz").style.display = "none";
+        const c = cc(data),
+          u = data.usage || {},
+          ms = data.messages || [];
+        const um = ms.filter((m) => m.type === "user").length,
+          am = ms.filter((m) => m.type === "assistant").length,
+          cp = ms.filter((m) => m.type === "checkpoint").length;
+        let dur = "—";
+        if (data.createdTime && data.lastModifiedTime) {
+          const mn = Math.round(
+            (new Date(data.lastModifiedTime) - new Date(data.createdTime)) /
+              60000,
+          );
+          dur =
+            mn >= 60 ? Math.floor(mn / 60) + "h " + (mn % 60) + "m" : mn + "m";
+        }
+        document.getElementById("mp").innerHTML =
+          `<h2>${eH(data.title || data.cascadeId || "Untitled")}</h2>
+<div class="sub">${lci("cpu", 14)} ${eH(data.modelDisplayName || gN(data.model))} · ${fT(data.createdTime)} → ${fT(data.lastModifiedTime)} · ${dur}</div>
+<div class="mg">
+<div class="mi"><div class="l">对话轮次</div><div class="v">${um}</div></div>
+<div class="mi"><div class="l">AI 回复</div><div class="v">${am}</div></div>
+<div class="mi"><div class="l">检查点</div><div class="v">${cp}</div></div>
+<div class="mi"><div class="l">总步骤</div><div class="v">${data.stepCount || ms.length}</div></div>
+<div class="mi"><div class="l">上下文</div><div class="v">${fK(u.contextUsed || u.totalInputTokens || 0)}</div></div>
+<div class="mi"><div class="l">压缩</div><div class="v" style="color:${u.compressionDetected ? "var(--amber)" : "var(--tx3)"}">${u.compressionDetected ? "检测到" : "无"}</div></div>
+</div>`;
+        document.getElementById("cro").innerHTML = `
+<div class="cc un"><div class="cl">${lci("zap", 13)} 无缓存 API</div><div class="cv">${f$(c.tu)}</div><div class="cs">中转站 / 随机轮询</div></div>
+<div class="cc ca"><div class="cl">${lci("database", 13)} 有缓存 API</div><div class="cv">${f$(c.tc)}</div><div class="cs">官方 API + Cache</div></div>
+<div class="cc ag"><div class="cl">${lci("gauge", 13)} AGP 估算</div><div class="cv">${f$(c.ae)}</div><div class="cs">Checkpoint 快照</div></div>`;
+        rt(ms);
+        lucide.createIcons();
+      }
+      function rt(ms) {
+        const tl = document.getElementById("tl");
+        let h = "";
+        for (let i = 0; i < ms.length; i++) {
+          const m = ms[i];
+          if (m.type === "checkpoint") h += rCp(m, i);
+          else if (m.type === "user") h += rU(m, i);
+          else if (m.type === "assistant") h += rA(m, i);
+        }
+        tl.innerHTML = h;
+        lucide.createIcons();
+        tl.querySelectorAll("pre code").forEach((el) => {
           try {
             hljs.highlightElement(el);
           } catch {}
         });
-        // Remove expand button
-        const btn = wrap.parentElement.querySelector(".expand-btn");
-        if (btn) btn.remove();
       }
-
-      // Toggle collapsible panel
-      function togglePanel(header) {
-        header.classList.toggle("open");
-        const body = header.nextElementSibling;
-        body.classList.toggle("open");
+      function rCp(m, i) {
+        const t = m.tokens || {};
+        return `<div class="mc cpk" data-type="checkpoint" data-idx="${i}"><div class="cpi">
+<span class="cpl">${lci("activity", 13)} Checkpoint</span>
+<span class="cps">In: <span>${fK(t.input || 0)}</span></span>
+<span class="cps">Out: <span>${fK(t.output || 0)}</span></span>
+${t.cacheRead ? `<span class="cps">Cache: <span>${fK(t.cacheRead)}</span></span>` : ""}
+<span class="ms">step ${m.stepIndex}</span>
+</div></div>`;
       }
-
-      // Toggle all panels of a type
-      function toggleAllPanels(type) {
-        allPanelStates[type] = !allPanelStates[type];
-        const panels = document.querySelectorAll(`.panel.${type}`);
-        panels.forEach((p) => {
-          const header = p.querySelector(".panel-header");
-          const body = p.querySelector(".panel-body");
-          if (allPanelStates[type]) {
-            header.classList.add("open");
-            body.classList.add("open");
-          } else {
-            header.classList.remove("open");
-            body.classList.remove("open");
+      function rU(m, i) {
+        const c = m.content || "",
+          tr = c.length > 2000,
+          dc = tr ? c.slice(0, 2000) + "\n\n…" : c;
+        return `<div class="mc usr" data-type="user" data-idx="${i}" data-text="${eA(c)}">
+<div class="mh"><span class="mr">${lci("user", 14)} 用户</span><span class="ms">step ${m.stepIndex}</span></div>
+<div class="${tr ? "trunc" : ""}" id="w${i}"><div class="mct">${rM(dc)}</div></div>
+${tr ? `<button class="xb" onclick="xc(${i})">展开完整内容 (${c.length} 字符)</button>` : ""}</div>`;
+      }
+      function rA(m, i) {
+        const c = m.content || "",
+          tr = c.length > 3000,
+          dc = tr ? c.slice(0, 3000) + "\n\n…" : c;
+        const ht = !!m.thinking,
+          htl = m.toolCalls && m.toolCalls.length > 0;
+        let pn = "";
+        if (ht)
+          pn += `<div class="pn tk"><div class="ph" onclick="tp(this)">${lci("brain", 14)} AI 推理过程 <span style="color:var(--tx3);font-weight:400;font-size:0.7rem">(${m.thinking.length} 字符)</span><span class="ar">${lci("chevron-down", 14)}</span></div><div class="pb thinking-panel">${eH(m.thinking)}</div></div>`;
+        if (htl) {
+          let th = "";
+          for (const tc of m.toolCalls) {
+            let a = tc.args || "";
+            try {
+              a = JSON.stringify(JSON.parse(a), null, 2);
+            } catch {}
+            th += `<div class="tc"><div class="tn">${lci("wrench", 12)} ${eH(tc.name)}</div><div class="ta">${eH(a)}</div></div>`;
           }
-        });
-        // Update button text
-        const btnId =
-          type === "thinking" ? "toggleThinkingBtn" : "toggleToolsBtn";
-        const btn = document.getElementById(btnId);
-        const label = type === "thinking" ? "🧠 推理" : "🔧 工具";
-        btn.textContent = allPanelStates[type]
-          ? label.replace("展开", "") + " 收起"
-          : label + " 展开";
-        btn.classList.toggle("active", allPanelStates[type]);
+          pn += `<div class="pn tl"><div class="ph" onclick="tp(this)">${lci("wrench", 14)} 工具调用 <span style="color:var(--tx3);font-weight:400;font-size:0.7rem">(${m.toolCalls.length} 个)</span><span class="ar">${lci("chevron-down", 14)}</span></div><div class="pb tool-panel">${th}</div></div>`;
+        }
+        const mt = m.model ? `<span class="mt">${gN(m.model)}</span>` : "";
+        return `<div class="mc ast" data-type="assistant" data-idx="${i}" data-text="${eA(c + (m.thinking || ""))}">
+<div class="mh"><span class="mr">${lci("bot", 14)} AI</span><span class="ms">step ${m.stepIndex}</span>${mt}
+${ht ? `<span class="mbi" style="color:var(--amber)">${lci("brain", 12)}</span>` : ""}
+${htl ? `<span class="mbi" style="color:var(--blue)">${lci("wrench", 12)}×${m.toolCalls.length}</span>` : ""}</div>
+${c ? `<div class="${tr ? "trunc" : ""}" id="w${i}"><div class="mct">${rM(dc)}</div></div>${tr ? `<button class="xb" onclick="xc(${i})">展开完整内容 (${c.length} 字符)</button>` : ""}` : ""} 
+${pn}</div>`;
       }
 
-      // Filter messages by type
-      function setFilter(filter, btn) {
-        currentFilter = filter;
+      function xc(i) {
+        const m = D.messages[i],
+          w = document.getElementById("w" + i);
+        if (!w) return;
+        w.classList.remove("trunc");
+        w.querySelector(".mct").innerHTML = rM(m.content);
+        w.querySelectorAll("pre code").forEach((el) => {
+          try {
+            hljs.highlightElement(el);
+          } catch {}
+        });
+        lucide.createIcons();
+        const b = w.parentElement.querySelector(".xb");
+        if (b) b.remove();
+      }
+      function tp(h) {
+        h.classList.toggle("op");
+        h.nextElementSibling.classList.toggle("op");
+        lucide.createIcons();
+      }
+      function tap(t) {
+        PS[t] = !PS[t];
+        document.querySelectorAll(`.pn.${t}`).forEach((p) => {
+          const h = p.querySelector(".ph"),
+            b = p.querySelector(".pb");
+          PS[t]
+            ? (h.classList.add("op"), b.classList.add("op"))
+            : (h.classList.remove("op"), b.classList.remove("op"));
+        });
+        lucide.createIcons();
+        const btn =
+          t === "tk"
+            ? document.getElementById("ttkb")
+            : document.getElementById("ttlb");
+        btn.classList.toggle("act", PS[t]);
+      }
+      function sf(f, b) {
+        CF = f;
         document
-          .querySelectorAll(".filter-group .btn")
-          .forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-
-        document.querySelectorAll(".msg-card").forEach((card) => {
-          const type = card.dataset.type;
-          if (filter === "all" || type === filter) {
-            card.classList.remove("filtered-out");
-          } else {
-            card.classList.add("filtered-out");
-          }
+          .querySelectorAll(".fg .btn")
+          .forEach((x) => x.classList.remove("act"));
+        b.classList.add("act");
+        document.querySelectorAll(".mc").forEach((c) => {
+          c.classList.toggle("fo", f !== "all" && c.dataset.type !== f);
         });
       }
-
-      // Search
-      let searchTimeout = null;
-      document
-        .getElementById("searchBox")
-        .addEventListener("input", function () {
-          clearTimeout(searchTimeout);
-          searchTimeout = setTimeout(() => performSearch(this.value), 200);
-        });
-
-      function performSearch(query) {
-        const cards = document.querySelectorAll(".msg-card");
-        const countEl = document.getElementById("searchCount");
-
-        if (!query || query.length < 2) {
-          cards.forEach((c) => {
-            c.classList.remove("search-miss", "search-hit");
-          });
-          countEl.textContent = "";
-          // Remove highlights
-          document.querySelectorAll("mark.search-hl").forEach((m) => {
-            m.replaceWith(m.textContent);
-          });
+      let sto = null;
+      document.getElementById("sb").addEventListener("input", function () {
+        clearTimeout(sto);
+        sto = setTimeout(() => ps(this.value), 200);
+      });
+      function ps(q) {
+        const cs = document.querySelectorAll(".mc"),
+          ce = document.getElementById("scc");
+        if (!q || q.length < 2) {
+          cs.forEach((c) => c.classList.remove("sm", "sh"));
+          ce.textContent = "";
           return;
         }
-
-        const lowerQ = query.toLowerCase();
-        let hits = 0;
-
-        cards.forEach((card) => {
-          const text = card.dataset.text || card.textContent || "";
-          if (text.toLowerCase().includes(lowerQ)) {
-            card.classList.add("search-hit");
-            card.classList.remove("search-miss");
-            hits++;
-          } else {
-            card.classList.add("search-miss");
-            card.classList.remove("search-hit");
-          }
+        const lq = q.toLowerCase();
+        let h = 0;
+        cs.forEach((c) => {
+          const t = c.dataset.text || c.textContent || "";
+          t.toLowerCase().includes(lq)
+            ? (c.classList.add("sh"), c.classList.remove("sm"), h++)
+            : (c.classList.add("sm"), c.classList.remove("sh"));
         });
-
-        countEl.textContent = `${hits} 条匹配`;
+        ce.textContent = h + " 条匹配";
       }
-
-      // ═══ Theme Toggle ═══
-      const themeToggle = document.getElementById("themeToggle");
-      function updateToggleIcon() {
-        const theme = document.documentElement.getAttribute("data-theme");
-        themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
+      // Theme
+      const ttb = document.getElementById("tt");
+      function uti() {
+        const t = document.documentElement.getAttribute("data-theme");
+        ttb.innerHTML = t === "dark" ? lci("sun", 18) : lci("moon", 18);
+        lucide.createIcons();
       }
-      updateToggleIcon();
-      themeToggle.addEventListener("click", () => {
-        const current = document.documentElement.getAttribute("data-theme");
-        const next = current === "dark" ? "light" : "dark";
-        document.documentElement.setAttribute("data-theme", next);
-        localStorage.setItem("agp-viewer-theme", next);
-        updateToggleIcon();
+      uti();
+      ttb.addEventListener("click", () => {
+        const c = document.documentElement.getAttribute("data-theme"),
+          n = c === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", n);
+        localStorage.setItem("agp-vt", n);
+        uti();
       });
-
-      // ═══ File Handling ═══
-      const dropzone = document.getElementById("dropzone");
-      const fileInput = document.getElementById("fileInput");
-
-      dropzone.addEventListener("click", () => fileInput.click());
-      dropzone.addEventListener("dragover", (e) => {
+      // File
+      const dz = document.getElementById("dz"),
+        fi = document.getElementById("fi");
+      dz.addEventListener("click", () => fi.click());
+      dz.addEventListener("dragover", (e) => {
         e.preventDefault();
-        dropzone.classList.add("drag-over");
+        dz.classList.add("over");
       });
-      dropzone.addEventListener("dragleave", () =>
-        dropzone.classList.remove("drag-over"),
-      );
-      dropzone.addEventListener("drop", (e) => {
+      dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+      dz.addEventListener("drop", (e) => {
         e.preventDefault();
-        dropzone.classList.remove("drag-over");
-        handleFile(e.dataTransfer.files[0]);
+        dz.classList.remove("over");
+        hf(e.dataTransfer.files[0]);
       });
-      fileInput.addEventListener("change", (e) =>
-        handleFile(e.target.files[0]),
-      );
-
-      async function handleFile(file) {
-        if (!file) return;
+      fi.addEventListener("change", (e) => hf(e.target.files[0]));
+      async function hf(f) {
+        if (!f) return;
         try {
-          const text = await file.text();
-          const data = JSON.parse(text);
-          if (!data.messages) {
-            alert("无效的 AGP 导出文件：缺少 messages 字段");
+          const t = await f.text(),
+            d = JSON.parse(t);
+          if (!d.messages) {
+            alert("无效的 AGP 导出文件");
             return;
           }
-          renderViewer(data);
+          rv(d);
         } catch (e) {
-          alert("解析文件失败：" + e.message);
+          alert("解析失败：" + e.message);
         }
       }
-
-      // Allow loading another file after initial load
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && currentData) {
-          document.getElementById("viewer").style.display = "none";
-          document.getElementById("dropzone").style.display = "";
-          currentData = null;
+        if (e.key === "Escape" && D) {
+          document.getElementById("vw").style.display = "none";
+          document.getElementById("dz").style.display = "";
+          D = null;
         }
       });
+      // Init icons
+      lucide.createIcons();
     </script>
   </body>
 </html>

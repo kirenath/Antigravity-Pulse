@@ -21,6 +21,7 @@ import {
     getConversationExport,
     getModelDisplayName,
     updateModelDisplayNames,
+    normalizeUri,
     processSteps,
     ModelConfig,
     TrajectorySummary,
@@ -338,6 +339,23 @@ function prompt(question: string): Promise<string> {
     });
 }
 
+// ─── Workspace Filtering ─────────────────────────────────────────────────────
+
+/**
+ * Filter trajectories to only include those belonging to the given workspace.
+ * Compares normalized workspace URIs for reliable cross-platform matching.
+ */
+function filterByWorkspace(trajectories: TrajectorySummary[], workspace: string): TrajectorySummary[] {
+    // Build the expected workspace URI (same format as used in LS discovery)
+    const workspaceUri = `file:///${workspace.replace(/\\/g, '/')}`;
+    const normalizedWs = normalizeUri(workspaceUri);
+
+    return trajectories.filter(t => {
+        if (t.workspaceUris.length === 0) return false;
+        return t.workspaceUris.some(uri => normalizeUri(uri) === normalizedWs);
+    });
+}
+
 // ─── Export Mode ─────────────────────────────────────────────────────────────
 
 async function exportConversation(workspace: string): Promise<void> {
@@ -373,11 +391,16 @@ async function exportConversation(workspace: string): Promise<void> {
         updateModelDisplayNames(configs);
     } catch { /* ok */ }
 
-    // 3. Fetch all conversations
+    // 3. Fetch all conversations & filter by workspace
     log('Fetching conversation list...');
-    const trajectories = await getAllTrajectories(ls);
+    const allTrajectories = await getAllTrajectories(ls);
+    const trajectories = filterByWorkspace(allTrajectories, workspace);
+    log(`Found ${allTrajectories.length} total, ${trajectories.length} in this workspace`);
     if (trajectories.length === 0) {
-        console.log('  No conversations found.');
+        console.log('  No conversations found for this workspace.');
+        if (allTrajectories.length > 0) {
+            console.log(`  (${allTrajectories.length} conversations exist in other workspaces)`);
+        }
         process.exit(0);
     }
 
@@ -511,14 +534,18 @@ async function exportAllConversations(workspace: string): Promise<void> {
         updateModelDisplayNames(configs);
     } catch { /* ok */ }
 
-    // 3. Fetch all conversations
+    // 3. Fetch all conversations & filter by workspace
     log('Fetching conversation list...');
-    const trajectories = await getAllTrajectories(ls);
+    const allTrajectories = await getAllTrajectories(ls);
+    const trajectories = filterByWorkspace(allTrajectories, workspace);
+    log(`Found ${allTrajectories.length} total, ${trajectories.length} in this workspace`);
     if (trajectories.length === 0) {
-        console.log('  No conversations found.');
+        console.log('  No conversations found for this workspace.');
+        if (allTrajectories.length > 0) {
+            console.log(`  (${allTrajectories.length} conversations exist in other workspaces)`);
+        }
         process.exit(0);
     }
-    log(`Found ${trajectories.length} conversations`);
 
     // 3. Fetch quota info
     let quotaInfo: { remainingFraction: number; resetTime: string } | undefined;

@@ -515,16 +515,11 @@ async function pollContextUsage(): Promise<void> {
             const cid = currentUsage.cascadeId;
             const group = getQuotaGroup(currentUsage.model);
             if (group) {
-                // Compute current cumulative totals from checkpoint data
-                const allUsages = [
-                    ...(currentUsage.checkpointUsages || []),
-                    ...(currentUsage.postCheckpointModelDeltas || []),
-                ];
-                let totalIn = 0, totalOut = 0;
-                for (const cp of allUsages) {
-                    totalIn += cp.inputTokens;
-                    totalOut += cp.outputTokens;
-                }
+                // Use last checkpoint values — NOT sum of all checkpoints.
+                // Each checkpoint's inputTokens already includes the full context
+                // history, so summing them would cause ~N/2x over-counting.
+                const totalIn = currentUsage.contextUsed;
+                const totalOut = currentUsage.totalOutputTokens;
 
                 const prev = previousWindowBaselines.get(cid);
                 const deltaSends = currentUsage.sendCount - (prev?.sendCount || 0);
@@ -569,6 +564,27 @@ async function pollContextUsage(): Promise<void> {
                 });
             }
         }
+
+        // AGP: Sync WindowTracker with API resetTime (like cockpit reference).
+        // fetchModelConfigs calls GetUserStatus which returns quotaInfo.resetTime
+        // for each model — use this to calibrate local window endTime.
+        try {
+            const configs = await fetchModelConfigs(lsInfo, abortController.signal);
+            if (configs.length > 0) {
+                updateModelDisplayNames(configs);
+                for (const cfg of configs) {
+                    if (cfg.resetTime && cfg.model) {
+                        const group = getQuotaGroup(cfg.model);
+                        if (group) {
+                            const resetMs = new Date(cfg.resetTime).getTime();
+                            if (!isNaN(resetMs) && resetMs > Date.now()) {
+                                windowTracker.syncWithQuotaAPI(resetMs, group);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch { /* Silent degradation — local window times remain as fallback */ }
 
         // AGP: Check window resets and persist
         windowTracker.checkWindowReset();

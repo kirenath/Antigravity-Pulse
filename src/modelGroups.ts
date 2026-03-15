@@ -26,8 +26,9 @@ const MODEL_GROUP_MAP: Record<string, QuotaGroup> = {
     'MODEL_PLACEHOLDER_M36': 'gemini-pro',   // Gemini 3.1 Pro (Low)
     'MODEL_PLACEHOLDER_M37': 'gemini-pro',   // Gemini 3.1 Pro (High)
 
-    // Gemini Flash group (M18)
-    'MODEL_PLACEHOLDER_M18': 'gemini-flash',  // Gemini 3 Flash
+    // Gemini Flash group (M18, M47)
+    'MODEL_PLACEHOLDER_M18': 'gemini-flash',  // Gemini 3 Flash (legacy)
+    'MODEL_PLACEHOLDER_M47': 'gemini-flash',  // Gemini 3 Flash (current)
 
     // Claude + GPT group (M12, M26, M35, GPT-OSS)
     'MODEL_PLACEHOLDER_M12': 'claude-gpt',
@@ -58,7 +59,8 @@ const MATCHERS: Array<{ group: QuotaGroup; match: (input: MatchInput) => boolean
         group: 'gemini-flash',
         match: ({ modelIdLower }) =>
             /^gemini-\d+(?:\.\d+)?-flash(?:-|$)/.test(modelIdLower) ||
-            /model_google_gemini_\d+_\d+_flash\b/.test(modelIdLower),
+            /model_google_gemini_\d+_\d+_flash\b/.test(modelIdLower) ||
+            /model_placeholder_m(18|47)\b/.test(modelIdLower),
     },
     {
         group: 'claude-gpt',

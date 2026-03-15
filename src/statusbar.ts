@@ -492,17 +492,30 @@ export class StatusBarManager {
     }
 
     /**
-     * Format remaining time as "XhYm".
+     * Format remaining time as "Xm", "XhYYm", or "Xd YhYYm".
+     * Aligned with cockpit reference's formatDelta 3-tier logic.
      */
     private formatRemainingTime(ms: number): string {
         if (ms <= 0) { return '0m'; }
         const totalMinutes = Math.ceil(ms / 60_000);
+
+        // < 60 minutes: show only minutes
+        if (totalMinutes < 60) {
+            return `${totalMinutes}m`;
+        }
+
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
-        if (hours > 0) {
+
+        // < 24 hours: show hours and minutes
+        if (hours < 24) {
             return `${hours}h${minutes.toString().padStart(2, '0')}m`;
         }
-        return `${minutes}m`;
+
+        // >= 24 hours: show days, hours and minutes
+        const days = Math.floor(hours / 24);
+        const remainingHours = hours % 24;
+        return `${days}d ${remainingHours}h${minutes.toString().padStart(2, '0')}m`;
     }
 
     dispose(): void {

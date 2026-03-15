@@ -24,3 +24,8 @@ prd/
 # vsix产物
 *.vsix
 
+# vscode
+.vscode/
+
+# deploy.bat
+deploy.bat

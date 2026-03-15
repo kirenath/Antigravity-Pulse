@@ -166,7 +166,8 @@ export interface ContextUsage {
 const PRIMARY_MODELS = new Set([
     'MODEL_PLACEHOLDER_M37',              // Gemini 3.1 Pro (High)
     'MODEL_PLACEHOLDER_M36',              // Gemini 3.1 Pro (Low)
-    'MODEL_PLACEHOLDER_M18',              // Gemini 3 Flash
+    'MODEL_PLACEHOLDER_M18',              // Gemini 3 Flash (legacy)
+    'MODEL_PLACEHOLDER_M47',              // Gemini 3 Flash (current)
     'MODEL_PLACEHOLDER_M35',              // Claude Sonnet 4.6 (Thinking)
     'MODEL_PLACEHOLDER_M26',              // Claude Opus 4.6 (Thinking)
     'MODEL_OPENAI_GPT_OSS_120B_MEDIUM',   // GPT-OSS 120B (Medium)
@@ -190,7 +191,8 @@ const PRIMARY_MODELS = new Set([
 const DEFAULT_CONTEXT_LIMITS: Record<string, number> = {
     'MODEL_PLACEHOLDER_M37': 1_000_000,  // Gemini 3.1 Pro (High)
     'MODEL_PLACEHOLDER_M36': 1_000_000,  // Gemini 3.1 Pro (Low)
-    'MODEL_PLACEHOLDER_M18': 1_000_000,  // Gemini 3 Flash
+    'MODEL_PLACEHOLDER_M18': 1_000_000,  // Gemini 3 Flash (legacy)
+    'MODEL_PLACEHOLDER_M47': 1_000_000,  // Gemini 3 Flash (current)
     'MODEL_PLACEHOLDER_M35': 200_000,    // Claude Sonnet 4.6 (Thinking)
     'MODEL_PLACEHOLDER_M26': 200_000,    // Claude Opus 4.6 (Thinking)
     'MODEL_OPENAI_GPT_OSS_120B_MEDIUM': 128_000,  // GPT-OSS 120B (Medium)
@@ -201,6 +203,7 @@ let modelDisplayNames: Record<string, string> = {
     'MODEL_PLACEHOLDER_M37': 'Gemini 3.1 Pro (High) / Gemini 3.1 Pro (强)',
     'MODEL_PLACEHOLDER_M36': 'Gemini 3.1 Pro (Low) / Gemini 3.1 Pro (弱)',
     'MODEL_PLACEHOLDER_M18': 'Gemini 3 Flash',
+    'MODEL_PLACEHOLDER_M47': 'Gemini 3 Flash',
     'MODEL_PLACEHOLDER_M35': 'Claude Sonnet 4.6 (Thinking) / Claude Sonnet 4.6 (思考)',
     'MODEL_PLACEHOLDER_M26': 'Claude Opus 4.6 (Thinking) / Claude Opus 4.6 (思考)',
     'MODEL_OPENAI_GPT_OSS_120B_MEDIUM': 'GPT-OSS 120B (Medium)',
@@ -854,11 +857,15 @@ export interface ModelConfig {
     model: string;
     label: string;
     supportsImages: boolean;
+    /** ISO timestamp from server — when this model's quota resets. */
+    resetTime?: string;
+    /** 0-1 fraction of quota remaining. */
+    remainingFraction?: number;
 }
 
 /**
  * Fetch model configurations from the LS GetUserStatus endpoint.
- * Returns display names and capabilities for all available models.
+ * Returns display names, capabilities, and quota info for all available models.
  * Fails silently — returns empty array on error.
  */
 export async function fetchModelConfigs(ls: LSInfo, signal?: AbortSignal): Promise<ModelConfig[]> {
@@ -871,11 +878,16 @@ export async function fetchModelConfigs(ls: LSInfo, signal?: AbortSignal): Promi
         const configs = configData?.clientModelConfigs as Array<Record<string, unknown>> | undefined;
         if (!configs) { return []; }
 
-        return configs.map(c => ({
-            model: ((c.modelOrAlias as Record<string, unknown>)?.model as string) || '',
-            label: (c.label as string) || '',
-            supportsImages: (c.supportsImages as boolean) || false,
-        })).filter(c => c.model && c.label);
+        return configs.map(c => {
+            const quotaInfo = c.quotaInfo as Record<string, unknown> | undefined;
+            return {
+                model: ((c.modelOrAlias as Record<string, unknown>)?.model as string) || '',
+                label: (c.label as string) || '',
+                supportsImages: (c.supportsImages as boolean) || false,
+                resetTime: quotaInfo?.resetTime as string | undefined,
+                remainingFraction: quotaInfo?.remainingFraction as number | undefined,
+            };
+        }).filter(c => c.model && c.label);
     } catch {
         return [];  // Silent degradation
     }

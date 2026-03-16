@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>AGP Token Analyzer</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap"
+    />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      :root {
+        --radius: 12px;
+        --radius-sm: 8px;
+        --tr: 0.2s ease;
+      }
+      [data-theme="dark"] {
+        --bg0: #0b1120;
+        --bg1: #0f172a;
+        --bg2: #1e293b;
+        --bg3: #334155;
+        --bd: #334155;
+        --bd2: #475569;
+        --bd-glow: #818cf8;
+        --tx1: #f1f5f9;
+        --tx2: #94a3b8;
+        --tx3: #64748b;
+        --user: #818cf8;
+        --ai: #22d3ee;
+        --green: #34d399;
+        --red: #f87171;
+        --amber: #fbbf24;
+        --blue: #60a5fa;
+        --pink: #f472b6;
+        --hero: linear-gradient(135deg, #818cf8, #22d3ee);
+        --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        --glass-bg: rgba(15, 23, 42, 0.85);
+        --glass-bd: rgba(51, 65, 85, 0.6);
+      }
+      [data-theme="light"] {
+        --bg0: #f1f5f9;
+        --bg1: #f8fafc;
+        --bg2: #ffffff;
+        --bg3: #f1f5f9;
+        --bd: #e2e8f0;
+        --bd2: #cbd5e1;
+        --bd-glow: #6366f1;
+        --tx1: #0f172a;
+        --tx2: #64748b;
+        --tx3: #94a3b8;
+        --user: #6366f1;
+        --ai: #0891b2;
+        --green: #059669;
+        --red: #dc2626;
+        --amber: #d97706;
+        --blue: #2563eb;
+        --pink: #db2777;
+        --hero: linear-gradient(135deg, #6366f1, #0891b2);
+        --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-bd: rgba(226, 232, 240, 0.6);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Fira Sans", sans-serif;
+        background: var(--bg0);
+        color: var(--tx1);
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 28px 16px;
+        position: relative;
+      }
+      /* Header */
+      .hdr {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+      .hdr h1 {
+        font-family: "Fira Code", monospace;
+        font-size: 1.8rem;
+        font-weight: 700;
+        background: var(--hero);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+      }
+      .hdr p {
+        color: var(--tx2);
+        font-size: 0.85rem;
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 10px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        color: var(--tx3);
+        font-size: 0.72rem;
+      }
+      /* Drop zone */
+      .dz {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        border: 2px dashed var(--bd2);
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all var(--tr);
+        padding: 32px;
+        text-align: center;
+        background: var(--bg2);
+        box-shadow: var(--shadow);
+      }
+      .dz:hover,
+      .dz.over {
+        border-color: var(--bd-glow);
+        background: var(--bg1);
+      }
+      .dz h3 {
+        font-family: "Fira Code", monospace;
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 12px 0 4px;
+        color: var(--tx1);
+      }
+      .dz p {
+        color: var(--tx2);
+        font-size: 0.82rem;
+      }
+      .dz .icn {
+        color: var(--tx3);
+        margin-bottom: 4px;
+      }
+      #fi {
+        display: none;
+      }
+      /* Theme toggle */
+      .tt {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 999;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--tx2);
+        transition: all var(--tr);
+        box-shadow: var(--shadow);
+      }
+      .tt:hover {
+        border-color: var(--bd-glow);
+        color: var(--tx1);
+      }
+      #vw {
+        display: none;
+      }
+      /* Meta */
+      .meta h2 {
+        font-family: "Fira Code", monospace;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 2px;
+      }
+      .meta .sub {
+        color: var(--tx2);
+        font-size: 0.78rem;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      /* Summary grid */
+      .mg {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .mi {
+        background: var(--bg1);
+        border-radius: var(--radius-sm);
+        padding: 10px 12px;
+      }
+      .mi .l {
+        font-size: 0.68rem;
+        color: var(--tx3);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+      .mi .v {
+        font-family: "Fira Code", monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+      /* Controls bar */
+      .ctrl {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        border-radius: var(--radius);
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-bd);
+        align-items: center;
+      }
+      .ctrl label {
+        font-size: 0.72rem;
+        color: var(--tx3);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .ctrl select {
+        padding: 5px 10px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--bd);
+        background: var(--bg1);
+        color: var(--tx1);
+        font-size: 0.8rem;
+        font-family: "Fira Sans", sans-serif;
+        cursor: pointer;
+      }
+      .ctrl .sep {
+        width: 1px;
+        height: 24px;
+        background: var(--bd);
+        margin: 0 4px;
+      }
+      /* Cost summary row */
+      .cr {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .cc {
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        position: relative;
+        overflow: hidden;
+      }
+      .cc::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+      }
+      .cc.c1::after {
+        background: linear-gradient(90deg, var(--red), #f97316);
+      }
+      .cc.c2::after {
+        background: linear-gradient(90deg, var(--blue), #22d3ee);
+      }
+      .cc.c3::after {
+        background: linear-gradient(90deg, var(--green), #34d399);
+      }
+      .cc .cl {
+        font-size: 0.68rem;
+        color: var(--tx2);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 6px;
+      }
+      .cc .cv {
+        font-family: "Fira Code", monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .cc .cs {
+        font-size: 0.68rem;
+        color: var(--tx3);
+        margin-top: 2px;
+      }
+      /* Context growth chart */
+      .chart-wrap {
+        margin-bottom: 18px;
+        border-radius: var(--radius);
+        padding: 16px;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+      }
+      .chart-wrap h3 {
+        font-family: "Fira Code", monospace;
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .chart {
+        width: 100%;
+        height: 160px;
+        position: relative;
+      }
+      .chart svg {
+        width: 100%;
+        height: 100%;
+      }
+      /* Turn table */
+      .ttbl {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 18px;
+        font-size: 0.8rem;
+      }
+      .ttbl th {
+        background: var(--bg1);
+        padding: 8px 10px;
+        text-align: left;
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--tx3);
+        border-bottom: 2px solid var(--bd);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .ttbl td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--bd);
+        font-family: "Fira Code", monospace;
+        font-size: 0.75rem;
+        vertical-align: top;
+      }
+      .ttbl tr:hover td {
+        background: var(--bg1);
+      }
+      .ttbl tr.usr td {
+        border-left: 3px solid var(--user);
+      }
+      .ttbl tr.ast td:first-child {
+        border-left: 3px solid var(--ai);
+      }
+      .ttbl tr.cpk td {
+        border-left: 3px solid var(--amber);
+      }
+      .ttbl .role {
+        font-family: "Fira Sans", sans-serif;
+        font-weight: 600;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .ttbl .role.u {
+        color: var(--user);
+      }
+      .ttbl .role.a {
+        color: var(--ai);
+      }
+      .ttbl .role.c {
+        color: var(--amber);
+      }
+      .ttbl .preview {
+        font-family: "Fira Sans", sans-serif;
+        font-size: 0.75rem;
+        color: var(--tx2);
+        max-width: 280px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+      }
+      .ttbl .preview:hover {
+        color: var(--tx1);
+        white-space: normal;
+        word-break: break-word;
+      }
+      .ttbl .cost {
+        color: var(--green);
+        font-weight: 600;
+      }
+      .ttbl .tools {
+        display: flex;
+        gap: 3px;
+        flex-wrap: wrap;
+      }
+      .tool-tag {
+        font-size: 0.62rem;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-family: "Fira Code", monospace;
+        white-space: nowrap;
+      }
+      .tool-tag.rd {
+        background: rgba(96, 165, 250, 0.15);
+        color: var(--blue);
+      }
+      .tool-tag.wr {
+        background: rgba(244, 114, 182, 0.15);
+        color: var(--pink);
+      }
+      .tool-tag.ot {
+        background: rgba(251, 191, 36, 0.15);
+        color: var(--amber);
+      }
+      /* Footer */
+      footer {
+        text-align: center;
+        margin-top: 36px;
+        padding: 18px;
+        color: var(--tx3);
+        font-size: 0.72rem;
+        line-height: 1.7;
+      }
+      footer a {
+        color: var(--user);
+        text-decoration: none;
+      }
+      @media (max-width: 640px) {
+        .container {
+          padding: 12px 10px;
+        }
+        .hdr h1 {
+          font-size: 1.4rem;
+        }
+        .ttbl {
+          font-size: 0.7rem;
+        }
+      }
+    </style>
+    <script>
+      (function () {
+        var s = localStorage.getItem("agp-vt"),
+          d = matchMedia("(prefers-color-scheme:dark)").matches;
+        document.documentElement.setAttribute(
+          "data-theme",
+          s || (d ? "dark" : "light"),
+        );
+      })();
+    </script>
+  </head>
+  <body>
+    <button class="tt" id="tt" title="Toggle theme">
+      <i data-lucide="moon" style="width: 18px; height: 18px"></i>
+    </button>
+    <div class="container">
+      <header class="hdr">
+        <h1>AGP Token Analyzer</h1>
+        <p>
+          逐条消息分析 Token 消耗与成本。不依赖 Checkpoint，直接从对话文本估算。
+          支持 What-If 模型切换和工具路由假设。
+        </p>
+        <span class="badge"
+          ><i data-lucide="lock" style="width: 12px; height: 12px"></i>
+          完全本地解析 · 不上传任何数据</span
+        >
+      </header>
+      <div class="dz" id="dz">
+        <i
+          data-lucide="scan-line"
+          style="width: 40px; height: 40px"
+          class="icn"
+        ></i>
+        <h3>拖放 JSON 文件到这里</h3>
+        <p>或点击选择 AGP 对话导出文件</p>
+        <input type="file" id="fi" accept=".json" />
+      </div>
+      <div id="vw">
+        <div id="mp" class="meta"></div>
+        <div class="ctrl" id="ctrl">
+          <label>主模型</label>
+          <select id="selModel"></select>
+          <div class="sep"></div>
+          <label>工具路由</label>
+          <select id="selRoute">
+            <option value="split" selected>B: 读写分离（推荐）</option>
+            <option value="all_main">A: 全部主模型（上限）</option>
+            <option value="all_flash">C: 全部 Flash（下限）</option>
+          </select>
+          <div class="sep"></div>
+          <label>缓存</label>
+          <select id="selCache">
+            <option value="none">无缓存</option>
+            <option value="cached" selected>有缓存</option>
+          </select>
+        </div>
+        <div id="cro" class="cr"></div>
+        <div id="chartArea" class="chart-wrap">
+          <h3>
+            <i data-lucide="trending-up" style="width: 16px; height: 16px"></i>
+            Context 增长曲线
+          </h3>
+          <div class="chart" id="chart"></div>
+        </div>
+        <div style="overflow-x: auto">
+          <table class="ttbl" id="ttbl">
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <footer>
+        AGP Token Analyzer by <a href="#">AG Pulse</a> · Per-message cost
+        estimation
+      </footer>
+    </div>
+    <script>
+      let D = null;
+
+      // ─── Model Pricing ($/M tokens) ─────────────────────────────────
+      const MODELS = {
+        MODEL_PLACEHOLDER_M26: {
+          n: "Claude Opus 4.6",
+          i: 5,
+          o: 25,
+          cw: 6.25,
+          cr: 0.5,
+        },
+        MODEL_PLACEHOLDER_M35: {
+          n: "Claude Sonnet 4.6",
+          i: 3,
+          o: 15,
+          cw: 3.75,
+          cr: 0.3,
+        },
+        MODEL_PLACEHOLDER_M37: {
+          n: "Gemini 3.1 Pro (High)",
+          i: 1.25,
+          o: 10,
+          cw: 1.5625,
+          cr: 0.3125,
+        },
+        MODEL_PLACEHOLDER_M36: {
+          n: "Gemini 3.1 Pro (Low)",
+          i: 1.25,
+          o: 10,
+          cw: 1.5625,
+          cr: 0.3125,
+        },
+        MODEL_PLACEHOLDER_M47: {
+          n: "Gemini 3 Flash",
+          i: 0.15,
+          o: 0.6,
+          cw: 0.19,
+          cr: 0.04,
+        },
+        MODEL_PLACEHOLDER_M18: {
+          n: "Gemini 3 Flash (Legacy)",
+          i: 0.15,
+          o: 0.6,
+          cw: 0.19,
+          cr: 0.04,
+        },
+        MODEL_GOOGLE_GEMINI_2_5_FLASH_LITE: {
+          n: "Gemini 2.5 Flash Lite",
+          i: 0.075,
+          o: 0.3,
+          cw: 0.01,
+          cr: 0.01,
+        },
+        MODEL_OPENAI_GPT_OSS_120B_MEDIUM: {
+          n: "GPT-OSS 120B",
+          i: 2,
+          o: 8,
+          cw: 2.5,
+          cr: 0.4,
+        },
+      };
+      const FLASH_LITE_KEY = "MODEL_GOOGLE_GEMINI_2_5_FLASH_LITE";
+
+      // ─── Tool Classification ────────────────────────────────────────
+      const READ_TOOLS = new Set([
+        "view_file",
+        "view_file_outline",
+        "view_code_item",
+        "grep_search",
+        "codebase_search",
+        "find_by_name",
+        "list_dir",
+        "read_url_content",
+        "view_content_chunk",
+        "list_resources",
+        "read_resource",
+        "read_terminal",
+        "command_status",
+        "read_browser_page",
+      ]);
+      const WRITE_TOOLS = new Set([
+        "replace_file_content",
+        "multi_replace_file_content",
+        "write_to_file",
+      ]);
+      // Everything else = "other" (run_command, search_web, etc.)
+
+      function classifyTool(name) {
+        if (READ_TOOLS.has(name)) return "rd";
+        if (WRITE_TOOLS.has(name)) return "wr";
+        return "ot";
+      }
+      function classifyLabel(cls) {
+        return cls === "rd" ? "Read" : cls === "wr" ? "Write" : "Other";
+      }
+
+      // ─── Token Estimation ───────────────────────────────────────────
+      const SYS_PROMPT_TOKENS = 1500; // conservative base estimate
+
+      function et(t) {
+        if (!t) return 0;
+        let a = 0,
+          n = 0;
+        for (let i = 0; i < t.length; i++) t.charCodeAt(i) < 128 ? a++ : n++;
+        return Math.ceil(a / 4 + n / 1.5);
+      }
+
+      // ─── Core Analysis ──────────────────────────────────────────────
+      function analyze(data, modelKey, routeMode, cacheMode) {
+        const mainP = MODELS[modelKey] || MODELS.MODEL_PLACEHOLDER_M26;
+        const flashP = MODELS[FLASH_LITE_KEY];
+        const msgs = data.messages || [];
+        let ctx = SYS_PROMPT_TOKENS; // running context accumulator
+        const turns = [];
+        let turnNum = 0;
+        let prevCtx = 0;
+        let totalCost = 0;
+        let isFirst = true;
+        let prevInputForCache = 0;
+
+        for (const m of msgs) {
+          if (m.type === "checkpoint") {
+            // Record checkpoint for reference, but don't use it for calculation
+            const ci = m.tokens?.input || 0;
+            turns.push({
+              type: "checkpoint",
+              stepIndex: m.stepIndex,
+              content: `Checkpoint: in=${fK(ci)} out=${fK(m.tokens?.output || 0)}`,
+              cpModel: m.model || "",
+              contextIn: 0,
+              outputTokens: 0,
+              delta: 0,
+              cost: 0,
+              cumCost: totalCost,
+              tools: [],
+            });
+            continue;
+          }
+
+          const txt = m.content || "";
+          const tokens = et(txt);
+
+          if (m.type === "user") {
+            ctx += tokens;
+            turns.push({
+              type: "user",
+              stepIndex: m.stepIndex,
+              content: txt.slice(0, 200),
+              tokens,
+              contextIn: ctx,
+              outputTokens: 0,
+              delta: tokens,
+              cost: 0,
+              cumCost: totalCost,
+              tools: [],
+            });
+            continue;
+          }
+
+          if (m.type === "assistant") {
+            turnNum++;
+            // Calculate output tokens
+            let outTokens = et(txt);
+            let thinkTokens = 0;
+            if (m.thinking) {
+              thinkTokens = et(m.thinking);
+              outTokens += thinkTokens;
+            }
+
+            // Classify tool calls and compute their token contribution
+            const tools = [];
+            let toolTokensRead = 0;
+            let toolTokensWrite = 0;
+            let toolTokensOther = 0;
+            if (m.toolCalls) {
+              for (const tc of m.toolCalls) {
+                const cls = classifyTool(tc.name);
+                const tcTokens = et((tc.name || "") + (tc.args || ""));
+                if (cls === "rd") toolTokensRead += tcTokens;
+                else if (cls === "wr") toolTokensWrite += tcTokens;
+                else toolTokensOther += tcTokens;
+                tools.push({ name: tc.name, cls, tokens: tcTokens });
+                outTokens += tcTokens;
+              }
+            }
+
+            // Determine cost based on routing mode
+            let turnCost = 0;
+            const inputCtx = ctx; // context at the time this turn fires
+
+            // Main model's share: content + thinking + write/other tools
+            // Flash's share: read tools (in split mode)
+            let mainOutTokens, flashOutTokens;
+            if (routeMode === "all_main") {
+              mainOutTokens = outTokens;
+              flashOutTokens = 0;
+            } else if (routeMode === "all_flash") {
+              mainOutTokens = et(txt) + thinkTokens; // content+thinking always main
+              flashOutTokens =
+                toolTokensRead + toolTokensWrite + toolTokensOther;
+            } else {
+              // split (default): read tools on flash, rest on main
+              mainOutTokens = outTokens - toolTokensRead;
+              flashOutTokens = toolTokensRead;
+            }
+
+            // Input cost (main model always handles the full context)
+            let inputCost;
+            if (cacheMode === "cached" && !isFirst) {
+              inputCost =
+                (Math.max(0, prevInputForCache) / 1e6) * mainP.cr +
+                (Math.max(0, inputCtx - prevInputForCache) / 1e6) * mainP.cw;
+            } else {
+              inputCost =
+                (inputCtx / 1e6) *
+                (cacheMode === "cached" ? mainP.cw : mainP.i);
+            }
+
+            // Output cost
+            const mainOutCost = (mainOutTokens / 1e6) * mainP.o;
+            const flashOutCost = (flashOutTokens / 1e6) * flashP.o;
+            turnCost = inputCost + mainOutCost + flashOutCost;
+            totalCost += turnCost;
+
+            prevInputForCache = inputCtx;
+            isFirst = false;
+
+            const delta = inputCtx - prevCtx;
+            turns.push({
+              type: "assistant",
+              turnNum,
+              stepIndex: m.stepIndex,
+              content: txt.slice(0, 200),
+              contextIn: inputCtx,
+              outputTokens: outTokens,
+              mainOut: mainOutTokens,
+              flashOut: flashOutTokens,
+              thinkTokens,
+              delta,
+              cost: turnCost,
+              cumCost: totalCost,
+              tools,
+              toolTokensRead,
+              toolTokensWrite,
+              toolTokensOther,
+            });
+
+            prevCtx = inputCtx;
+            ctx += outTokens; // output becomes part of next turn's context
+          }
+        }
+
+        return { turns, totalCost, totalTurns: turnNum };
+      }
+
+      // ─── Formatters ─────────────────────────────────────────────────
+      function f$(n) {
+        if (n === 0) return "$0.00";
+        return n < 0.001 ? "<$0.001" : "$" + n.toFixed(3);
+      }
+      function fK(n) {
+        return n >= 1e6
+          ? (n / 1e6).toFixed(1) + "M"
+          : n >= 1e3
+            ? (n / 1e3).toFixed(1) + "k"
+            : String(Math.round(n));
+      }
+      function eH(s) {
+        const d = document.createElement("div");
+        d.textContent = s || "";
+        return d.innerHTML;
+      }
+      function lci(name, size) {
+        return `<i data-lucide="${name}" style="width:${size}px;height:${size}px"></i>`;
+      }
+      function fT(iso) {
+        if (!iso) return "—";
+        try {
+          return new Date(iso).toLocaleString("zh-CN", {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch {
+          return iso;
+        }
+      }
+      function gN(k) {
+        return (
+          MODELS[k]?.n ||
+          k?.replace(/^MODEL_/, "").replace(/_/g, " ") ||
+          "Unknown"
+        );
+      }
+
+      // ─── Render ─────────────────────────────────────────────────────
+      function render() {
+        if (!D) return;
+        const modelKey = document.getElementById("selModel").value;
+        const routeMode = document.getElementById("selRoute").value;
+        const cacheMode = document.getElementById("selCache").value;
+        const result = analyze(D, modelKey, routeMode, cacheMode);
+
+        // Cost summary
+        const mainP = MODELS[modelKey] || MODELS.MODEL_PLACEHOLDER_M26;
+        const aTurns = result.turns.filter((t) => t.type === "assistant");
+        const totalIn = aTurns.reduce((s, t) => s + t.contextIn, 0);
+        const totalOut = aTurns.reduce((s, t) => s + t.outputTokens, 0);
+        const totalFlash = aTurns.reduce((s, t) => s + (t.flashOut || 0), 0);
+        const totalMainOut = aTurns.reduce((s, t) => s + (t.mainOut || 0), 0);
+
+        document.getElementById("cro").innerHTML = `
+<div class="cc c1"><div class="cl">${lci("coins", 13)} 总成本</div><div class="cv">${f$(result.totalCost)}</div><div class="cs">${result.totalTurns} 轮 · ${gN(modelKey)}</div></div>
+<div class="cc c2"><div class="cl">${lci("arrow-down", 13)} 总 Input</div><div class="cv">${fK(totalIn)}</div><div class="cs">累积 context（含重复）</div></div>
+<div class="cc c3"><div class="cl">${lci("arrow-up", 13)} 总 Output</div><div class="cv">${fK(totalOut)}</div><div class="cs">主模型 ${fK(totalMainOut)} · Flash ${fK(totalFlash)}</div></div>`;
+
+        // Chart
+        renderChart(aTurns);
+
+        // Table
+        document.getElementById("thead").innerHTML = `<tr>
+<th>#</th><th>角色</th><th>Context In</th><th>Output</th><th>Δ Context</th><th>工具</th><th>轮次成本</th><th>累积成本</th><th>内容预览</th></tr>`;
+
+        let rows = "";
+        for (const t of result.turns) {
+          if (t.type === "checkpoint") {
+            rows += `<tr class="cpk"><td colspan="2"><span class="role c">${lci("activity", 12)} CKP</span></td>
+<td colspan="7" style="font-family:'Fira Sans';color:var(--tx3);font-size:0.72rem">${eH(t.content)} · model: ${eH(t.cpModel ? gN(t.cpModel) : "—")}</td></tr>`;
+            continue;
+          }
+          if (t.type === "user") {
+            rows += `<tr class="usr"><td></td><td><span class="role u">${lci("user", 11)} 用户</span></td>
+<td>${fK(t.contextIn)}</td><td>+${fK(t.tokens)}</td><td>+${fK(t.delta)}</td><td></td><td></td><td></td>
+<td><div class="preview">${eH(t.content)}</div></td></tr>`;
+            continue;
+          }
+          // assistant
+          let toolsHtml = "";
+          if (t.tools.length > 0) {
+            toolsHtml = '<div class="tools">';
+            for (const tl of t.tools) {
+              toolsHtml += `<span class="tool-tag ${tl.cls}" title="${classifyLabel(tl.cls)}: ${tl.tokens} tokens">${eH(tl.name)}</span>`;
+            }
+            toolsHtml += "</div>";
+          }
+          rows += `<tr class="ast"><td style="color:var(--ai);font-weight:700">${t.turnNum}</td>
+<td><span class="role a">${lci("bot", 11)} AI</span></td>
+<td>${fK(t.contextIn)}</td>
+<td>${fK(t.outputTokens)}${t.thinkTokens ? ` <span style="color:var(--amber);font-size:0.62rem">(🧠${fK(t.thinkTokens)})</span>` : ""}</td>
+<td style="color:var(--tx2)">+${fK(t.delta)}</td>
+<td>${toolsHtml}</td>
+<td class="cost">${f$(t.cost)}</td>
+<td style="color:var(--tx2)">${f$(t.cumCost)}</td>
+<td><div class="preview">${eH(t.content)}</div></td></tr>`;
+        }
+        document.getElementById("tbody").innerHTML = rows;
+        lucide.createIcons();
+      }
+
+      function renderChart(aTurns) {
+        if (aTurns.length < 2) {
+          document.getElementById("chart").innerHTML =
+            '<div style="color:var(--tx3);text-align:center;padding:40px;font-size:0.8rem">需要至少 2 轮 AI 回复才能绘制曲线</div>';
+          return;
+        }
+        const maxCtx = Math.max(...aTurns.map((t) => t.contextIn));
+        const maxCost = Math.max(...aTurns.map((t) => t.cumCost));
+        const W = 100,
+          H = 100;
+        const pad = { l: 0, r: 0, t: 5, b: 5 };
+        const iw = W - pad.l - pad.r;
+        const ih = H - pad.t - pad.b;
+
+        function pts(arr, getY, maxY) {
+          return arr
+            .map((t, i) => {
+              const x = pad.l + (i / (arr.length - 1)) * iw;
+              const y = pad.t + ih - (getY(t) / maxY) * ih;
+              return `${x},${y}`;
+            })
+            .join(" ");
+        }
+
+        const ctxPts = pts(aTurns, (t) => t.contextIn, maxCtx);
+        const costPts = pts(aTurns, (t) => t.cumCost, maxCost);
+
+        // Dots
+        let dots = "";
+        aTurns.forEach((t, i) => {
+          const x = pad.l + (i / (aTurns.length - 1)) * iw;
+          const y1 = pad.t + ih - (t.contextIn / maxCtx) * ih;
+          const y2 = pad.t + ih - (t.cumCost / maxCost) * ih;
+          dots += `<circle cx="${x}" cy="${y1}" r="1.2" fill="var(--ai)" opacity="0.8"/>`;
+          dots += `<circle cx="${x}" cy="${y2}" r="1.2" fill="var(--green)" opacity="0.8"/>`;
+        });
+
+        document.getElementById("chart").innerHTML = `
+<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+<polyline points="${ctxPts}" fill="none" stroke="var(--ai)" stroke-width="0.8" opacity="0.9"/>
+<polyline points="${costPts}" fill="none" stroke="var(--green)" stroke-width="0.8" opacity="0.9"/>
+${dots}
+</svg>
+<div style="display:flex;gap:16px;justify-content:center;margin-top:6px;font-size:0.68rem;color:var(--tx3)">
+<span style="color:var(--ai)">● Context (max: ${fK(maxCtx)})</span>
+<span style="color:var(--green)">● 累积成本 (${f$(maxCost)})</span>
+</div>`;
+      }
+
+      // ─── Init View ──────────────────────────────────────────────────
+      function initView(data) {
+        D = data;
+        document.getElementById("vw").style.display = "block";
+        document.getElementById("dz").style.display = "none";
+
+        const ms = data.messages || [];
+        const um = ms.filter((m) => m.type === "user").length;
+        const am = ms.filter((m) => m.type === "assistant").length;
+        let dur = "—";
+        if (data.createdTime && data.lastModifiedTime) {
+          const mn = Math.round(
+            (new Date(data.lastModifiedTime) - new Date(data.createdTime)) /
+              60000,
+          );
+          dur =
+            mn >= 60 ? Math.floor(mn / 60) + "h " + (mn % 60) + "m" : mn + "m";
+        }
+
+        document.getElementById("mp").innerHTML =
+          `<h2>${eH(data.title || data.cascadeId || "Untitled")}</h2>
+<div class="sub">${lci("cpu", 14)} ${eH(data.modelDisplayName || gN(data.model))} · ${fT(data.createdTime)} → ${fT(data.lastModifiedTime)} · ${dur} · ${um} 轮用户 · ${am} 轮 AI</div>`;
+
+        // Populate model selector
+        const sel = document.getElementById("selModel");
+        sel.innerHTML = "";
+        for (const [k, v] of Object.entries(MODELS)) {
+          const opt = document.createElement("option");
+          opt.value = k;
+          opt.textContent = v.n;
+          if (k === data.model) opt.selected = true;
+          sel.appendChild(opt);
+        }
+
+        render();
+      }
+
+      // ─── Events ─────────────────────────────────────────────────────
+      document.getElementById("selModel").addEventListener("change", render);
+      document.getElementById("selRoute").addEventListener("change", render);
+      document.getElementById("selCache").addEventListener("change", render);
+
+      // Theme
+      const ttb = document.getElementById("tt");
+      function uti() {
+        const t = document.documentElement.getAttribute("data-theme");
+        ttb.innerHTML = t === "dark" ? lci("sun", 18) : lci("moon", 18);
+        lucide.createIcons();
+      }
+      uti();
+      ttb.addEventListener("click", () => {
+        const c = document.documentElement.getAttribute("data-theme"),
+          n = c === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", n);
+        localStorage.setItem("agp-vt", n);
+        uti();
+      });
+
+      // File handling
+      const dz = document.getElementById("dz"),
+        fi = document.getElementById("fi");
+      dz.addEventListener("click", () => fi.click());
+      dz.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dz.classList.add("over");
+      });
+      dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+      dz.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dz.classList.remove("over");
+        hf(e.dataTransfer.files[0]);
+      });
+      fi.addEventListener("change", (e) => hf(e.target.files[0]));
+      async function hf(f) {
+        if (!f) return;
+        try {
+          const t = await f.text(),
+            d = JSON.parse(t);
+          if (!d.messages) {
+            alert("无效的 AGP 导出文件");
+            return;
+          }
+          initView(d);
+        } catch (e) {
+          alert("解析失败：" + e.message);
+        }
+      }
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && D) {
+          document.getElementById("vw").style.display = "none";
+          document.getElementById("dz").style.display = "";
+          D = null;
+        }
+      });
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

@@ -19,9 +19,23 @@ export interface LSInfo {
 /**
  * Build the expected workspace_id from a workspace URI.
  * Mirrors the conversion Antigravity uses for --workspace_id process argument.
+ *
+ * Antigravity encodes workspace IDs by:
+ *   1. Replacing :/// with _
+ *   2. Lowercasing the drive letter
+ *   3. Encoding special chars (: → 3A, similar to percent-encoding without %)
+ *   4. Replacing / with _
+ *
+ * Example: file:///C:/vpsDev → file_c_3A_vpsDev
  */
 export function buildExpectedWorkspaceId(workspaceUri: string): string {
-    return workspaceUri.replace(':///', '_').replace(/\//g, '_');
+    let id = workspaceUri.replace(':///', '_');
+    // Encode drive letter colon: C: → c_3A
+    id = id.replace(/^(file_)([A-Za-z]):/, (_, prefix, drive) =>
+        `${prefix}${drive.toLowerCase()}_3A`
+    );
+    id = id.replace(/\//g, '_');
+    return id;
 }
 
 /**

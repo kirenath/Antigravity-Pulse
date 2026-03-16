@@ -2,6 +2,8 @@
 
 **Antigravity Pulse (AGP)** 是 Antigravity 的对话分析 & 资源监控脚本工具集。拉取到本地任意位置后直接运行，通过读取本机的 Antigravity Language Server 数据来导出对话、分析 token 消耗和估算 API 成本。
 
+主要参考了[Antigravity Context Window Monitor](https://github.com/lalalavir/Antigravity-Context-Window-Monitor)，感谢作者的无私分享。
+
 ## 快速开始
 
 ```bash

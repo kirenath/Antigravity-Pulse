@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>AGP Tools</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap"
+    />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      :root {
+        --radius: 16px;
+        --radius-sm: 10px;
+        --tr: 0.25s ease;
+      }
+      [data-theme="dark"] {
+        --bg0: #0b1120;
+        --bg1: #0f172a;
+        --bg2: #1e293b;
+        --bd: #334155;
+        --bd-glow: #818cf8;
+        --tx1: #f1f5f9;
+        --tx2: #94a3b8;
+        --tx3: #64748b;
+        --hero: linear-gradient(135deg, #818cf8, #22d3ee);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        --card-hover: rgba(129, 140, 248, 0.06);
+        --purple: #818cf8;
+        --cyan: #22d3ee;
+        --green: #34d399;
+        --pink: #f472b6;
+        --amber: #fbbf24;
+      }
+      [data-theme="light"] {
+        --bg0: #f1f5f9;
+        --bg1: #f8fafc;
+        --bg2: #ffffff;
+        --bd: #e2e8f0;
+        --bd-glow: #6366f1;
+        --tx1: #0f172a;
+        --tx2: #64748b;
+        --tx3: #94a3b8;
+        --hero: linear-gradient(135deg, #6366f1, #0891b2);
+        --shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+        --card-hover: rgba(99, 102, 241, 0.04);
+        --purple: #6366f1;
+        --cyan: #0891b2;
+        --green: #059669;
+        --pink: #db2777;
+        --amber: #d97706;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Fira Sans", sans-serif;
+        background: var(--bg0);
+        color: var(--tx1);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .container {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 20px 32px;
+        flex: 1;
+      }
+      /* Header */
+      .hdr {
+        text-align: center;
+        margin-bottom: 48px;
+      }
+      .hdr h1 {
+        font-family: "Fira Code", monospace;
+        font-size: 2.4rem;
+        font-weight: 700;
+        background: var(--hero);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 12px;
+        letter-spacing: -1px;
+      }
+      .hdr p {
+        color: var(--tx2);
+        font-size: 0.92rem;
+        line-height: 1.7;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+      .hdr .ver {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        color: var(--tx3);
+        font-size: 0.68rem;
+        font-family: "Fira Code", monospace;
+      }
+      /* Cards */
+      .cards {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .card {
+        display: flex;
+        align-items: flex-start;
+        gap: 18px;
+        padding: 24px 28px;
+        border-radius: var(--radius);
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        text-decoration: none;
+        color: inherit;
+        transition: all var(--tr);
+        box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+      }
+      .card:hover {
+        border-color: var(--bd-glow);
+        background: var(--card-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+      }
+      .card::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        opacity: 0;
+        transition: opacity var(--tr);
+      }
+      .card:hover::after {
+        opacity: 1;
+      }
+      .card.c1::after {
+        background: linear-gradient(90deg, var(--purple), var(--cyan));
+      }
+      .card.c2::after {
+        background: linear-gradient(90deg, var(--pink), var(--amber));
+      }
+      .card.c3::after {
+        background: linear-gradient(90deg, var(--cyan), var(--green));
+      }
+      .card-icon {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.2rem;
+      }
+      .c1 .card-icon {
+        background: linear-gradient(135deg, var(--purple), var(--cyan));
+      }
+      .c2 .card-icon {
+        background: linear-gradient(135deg, var(--pink), var(--amber));
+      }
+      .c3 .card-icon {
+        background: linear-gradient(135deg, var(--cyan), var(--green));
+      }
+      .card-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .card-body h3 {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .card-body p {
+        color: var(--tx2);
+        font-size: 0.82rem;
+        line-height: 1.6;
+      }
+      .card-arrow {
+        color: var(--tx3);
+        flex-shrink: 0;
+        align-self: center;
+        transition: transform var(--tr);
+      }
+      .card:hover .card-arrow {
+        transform: translateX(4px);
+        color: var(--tx1);
+      }
+      /* Tags */
+      .tags {
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .tag {
+        font-size: 0.62rem;
+        padding: 2px 7px;
+        border-radius: 6px;
+        background: var(--bg1);
+        border: 1px solid var(--bd);
+        color: var(--tx3);
+        font-family: "Fira Code", monospace;
+      }
+      /* Footer */
+      footer {
+        text-align: center;
+        padding: 24px;
+        color: var(--tx3);
+        font-size: 0.72rem;
+        line-height: 1.7;
+      }
+      footer a {
+        color: var(--purple);
+        text-decoration: none;
+      }
+      /* Theme toggle */
+      .tt {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 999;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--tx2);
+        transition: all var(--tr);
+        box-shadow: var(--shadow);
+      }
+      .tt:hover {
+        border-color: var(--bd-glow);
+        color: var(--tx1);
+      }
+      @media (max-width: 640px) {
+        .container {
+          padding: 28px 14px 24px;
+        }
+        .hdr h1 {
+          font-size: 1.8rem;
+        }
+        .card {
+          padding: 18px 20px;
+          gap: 14px;
+        }
+      }
+    </style>
+    <script>
+      (function () {
+        var s = localStorage.getItem("agp-vt"),
+          d = matchMedia("(prefers-color-scheme:dark)").matches;
+        document.documentElement.setAttribute(
+          "data-theme",
+          s || (d ? "dark" : "light"),
+        );
+      })();
+    </script>
+  </head>
+  <body>
+    <button class="tt" id="tt" title="Toggle theme">
+      <i data-lucide="moon" style="width: 18px; height: 18px"></i>
+    </button>
+    <div class="container">
+      <header class="hdr">
+        <h1>AGP Tools</h1>
+        <p>Antigravity Pulse 对话分析工具集。完全本地运行，不上传任何数据。</p>
+        <span class="ver">v1.0</span>
+      </header>
+      <div class="cards">
+        <a href="conversation-viewer.html" class="card c1">
+          <div class="card-icon">
+            <i data-lucide="book-open" style="width: 24px; height: 24px"></i>
+          </div>
+          <div class="card-body">
+            <h3>Conversation Viewer</h3>
+            <p>
+              可视化阅读对话内容 — Markdown 渲染、代码高亮、AI
+              推理折叠面板、搜索。支持导出精简 JSON 或 Markdown 存档。
+            </p>
+            <div class="tags">
+              <span class="tag">📖 阅读</span>
+              <span class="tag">📄 导出 JSON</span>
+              <span class="tag">📝 导出 MD</span>
+            </div>
+          </div>
+          <div class="card-arrow">
+            <i data-lucide="arrow-right" style="width: 20px; height: 20px"></i>
+          </div>
+        </a>
+        <a href="cost-calculator.html" class="card c2">
+          <div class="card-icon">
+            <i data-lucide="calculator" style="width: 24px; height: 24px"></i>
+          </div>
+          <div class="card-body">
+            <h3>Cost Calculator</h3>
+            <p>
+              批量成本概览 — 拖入多个对话
+              JSON，一眼看总花费。对比无缓存、有缓存、AGP 估算三种计价方式。
+            </p>
+            <div class="tags">
+              <span class="tag">💰 批量分析</span>
+              <span class="tag">📊 可视化对比</span>
+              <span class="tag">🗜️ 压缩检测</span>
+            </div>
+          </div>
+          <div class="card-arrow">
+            <i data-lucide="arrow-right" style="width: 20px; height: 20px"></i>
+          </div>
+        </a>
+        <a href="token-analyzer.html" class="card c3">
+          <div class="card-icon">
+            <i data-lucide="scan-line" style="width: 24px; height: 24px"></i>
+          </div>
+          <div class="card-body">
+            <h3>Token Analyzer</h3>
+            <p>
+              逐条消息 Token 深入分析 — 每轮 AI 回复的 Input/Output
+              拆解、工具路由分类、What-If 模型切换和缓存模式。
+            </p>
+            <div class="tags">
+              <span class="tag">🔬 逐条分析</span>
+              <span class="tag">🔀 工具路由</span>
+              <span class="tag">🔄 What-If</span>
+            </div>
+          </div>
+          <div class="card-arrow">
+            <i data-lucide="arrow-right" style="width: 20px; height: 20px"></i>
+          </div>
+        </a>
+      </div>
+    </div>
+    <footer>
+      AGP Tools by <a href="https://github.com" target="_blank">AG Pulse</a> ·
+      完全本地运行 · 数据不出浏览器
+    </footer>
+    <script>
+      const ttb = document.getElementById("tt");
+      function lci(n, s) {
+        return `<i data-lucide="${n}" style="width:${s}px;height:${s}px"></i>`;
+      }
+      function uti() {
+        const t = document.documentElement.getAttribute("data-theme");
+        ttb.innerHTML = t === "dark" ? lci("sun", 18) : lci("moon", 18);
+        lucide.createIcons();
+      }
+      uti();
+      ttb.addEventListener("click", () => {
+        const c = document.documentElement.getAttribute("data-theme"),
+          n = c === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", n);
+        localStorage.setItem("agp-vt", n);
+        uti();
+      });
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

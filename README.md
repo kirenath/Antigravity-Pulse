@@ -1,68 +1,46 @@
 # Antigravity Pulse
 
-**Antigravity Pulse (AGP)** 是 Antigravity 的对话分析 & 资源监控工具集。拉取到本地后直接运行，通过读取本机的 Antigravity Language Server 数据来导出对话、分析 token 消耗和估算 API 成本。
+**Antigravity Pulse (AGP)** 是 Antigravity 的对话分析 & 资源监控脚本工具集。拉取到本地任意位置后直接运行，通过读取本机的 Antigravity Language Server 数据来导出对话、分析 token 消耗和估算 API 成本。
 
 ## 快速开始
 
 ```bash
+# 拉取到任意位置
 git clone https://github.com/kirenath/Antigravity-Pulse.git
 cd Antigravity-Pulse
 pnpm install
 ```
 
 > [!CAUTION]
-> **安全提示：** 导出的对话数据保存在 `.agp/` 目录下，包含完整的对话内容。如果你在其他项目中使用 AGP，请务必将 `.agp/` 添加到该项目的 `.gitignore`，否则对话内容可能会被意外提交到 Git 仓库中泄露！
+> **安全提示：** 导出的对话数据保存在目标工作区的 `.agp/` 目录下，包含完整的对话内容。请务必将 `.agp/` 添加到该工作区的 `.gitignore`，否则对话内容可能会被意外提交到 Git 仓库中泄露！
 >
 > ```bash
 > echo ".agp/" >> .gitignore
 > ```
 
-## 功能
-
-- **实时上下文监控** — 状态栏显示当前会话的 token 用量、使用率、等效 API 费用
-- **5 小时窗口追踪** — 按配额组 (Gemini Pro / Flash / Claude-GPT) 独立追踪用量
-- **窗口倒计时** — 状态栏显示当前最活跃窗口的剩余时间
-- **用量报告** — Webview 面板展示 7 天汇总 + 窗口历史
-- **压缩检测** — 自动检测并标注上下文压缩事件
-
-## 配额组
-
-| 组           | 模型                                        |
-| ------------ | ------------------------------------------- |
-| Gemini Pro   | Gemini 3.1 Pro (High/Low)                   |
-| Gemini Flash | Gemini 3 Flash                              |
-| Claude + GPT | Claude 4.6 Sonnet, Claude 4.6 Opus, GPT-OSS |
-
-## 配置
-
-| Key                       | Default       | 说明                          |
-| ------------------------- | ------------- | ----------------------------- |
-| `agp.pollingInterval`     | `5`           | 轮询间隔（秒）                |
-| `agp.windowDurationHours` | `5`           | 配额窗口时长（小时）          |
-| `agp.contextLimits`       | _(per model)_ | 各模型上下文窗口上限（token） |
-
-## 命令
-
-- `AG Pulse: Show Report` — 打开用量报告面板
-- `AG Pulse: Show Details` — Quick Pick 详情面板
-- `AG Pulse: Refresh` — 手动刷新
-
 ## 对话导出
 
-在 AGP 项目目录下，通过命令行导出 Antigravity 对话数据为 JSON 文件。
+AGP 作为独立脚本使用——你不需要把 AGP 安装到目标项目里，只需在 AGP 目录下运行命令，并指定要导出对话的 Antigravity 工作区路径。
 
 > [!IMPORTANT]
-> 导出时 Antigravity 必须正在运行（即你有一个打开的 Antigravity 窗口且处于活动状态）。
+> 导出时 Antigravity 必须正在运行（即你有一个打开的 Antigravity 窗口且该工作区处于活动状态）。
 
 ```bash
-# 导出当前活跃的对话
-pnpm export
+# 导出指定工作区的对话（交互式选择）
+pnpm export C:\path\to\your\workspace
 
-# 导出所有对话
-pnpm export-all
+# 导出指定工作区的所有对话
+pnpm export-all C:\path\to\your\workspace
 ```
 
-导出的 JSON 文件保存在 `.agp/exports/` 目录下。
+如果不传路径参数，则默认导出 AGP 安装目录自身的工作区对话：
+
+```bash
+# 等价于 pnpm export .（导出 AGP 自身目录的对话）
+pnpm export
+```
+
+导出的 JSON 文件保存在 `<目标工作区>/.agp/exports/` 目录下。
 
 - 只有通过 `pnpm export` 导出的 JSON 文件才能被分析工具识别
 - 暂不支持直接解析 Antigravity 的原始聊天数据
@@ -103,6 +81,26 @@ AGP 提供三个独立的 Web 分析工具，可在浏览器中本地运行。
 - What-If 分析：切换主模型、工具路由模式、缓存模式
 - Context 增长曲线图
 
+## 实时监控（可选）
+
+AGP 也可以作为实时 quota 监控脚本运行：
+
+```bash
+# 监控指定工作区的 quota 消耗
+pnpm monitor C:\path\to\your\workspace
+
+# 不传路径则监控当前目录
+pnpm monitor
+```
+
+### 配额组
+
+| 组           | 模型                                        |
+| ------------ | ------------------------------------------- |
+| Gemini Pro   | Gemini 3.1 Pro (High/Low)                   |
+| Gemini Flash | Gemini 3 Flash                              |
+| Claude + GPT | Claude 4.6 Sonnet, Claude 4.6 Opus, GPT-OSS |
+
 ## 致谢 / Acknowledgements
 
 本项目参考了以下优秀开源项目：
@@ -119,7 +117,7 @@ MIT
 
 ## 免责声明 / Disclaimer
 
-- 本插件通过分析本地 Language Server 数据进行用量估算，**不保证数值与官方完全一致**
+- 本工具通过分析本地 Language Server 数据进行用量估算，**不保证数值与官方完全一致**
 - 所有数据处理均在本地完成，不会向任何第三方发送数据
 - 本项目为独立的社区工具，与 Antigravity 官方无关
 - 仅供个人学习和研究使用，请勿用于商业用途

@@ -45,7 +45,7 @@ npm run export
 ```
 
 > [!TIP]
-> pnpm 用户可以用更简短的写法：`pnpm export C:\path\to\workspace`
+> pnpm 用户可以用更简短的写法：`pnpm export C:\path\to\workspace` 或者 `pnpm export-all C:\path\to\workspace`
 
 导出的 JSON 文件保存在 `<目标工作区>/.agp/exports/` 目录下。
 

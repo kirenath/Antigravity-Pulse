@@ -499,7 +499,7 @@
               >
               <div>
                 <strong style="color: var(--tx1)">导出对话数据</strong><br />
-                在 AGP 项目目录下执行：
+                在 AGP 项目目录下执行，指定要导出的工作区路径：
                 <div
                   style="
                     margin-top: 6px;
@@ -510,13 +510,22 @@
                     font-size: 0.76rem;
                   "
                 >
-                  <span style="color: var(--tx3)"># 导出当前活跃对话</span
+                  <span style="color: var(--tx3)"
+                    ># 导出指定工作区的对话（交互式选择）</span
                   ><br />
-                  <span style="color: var(--green)">pnpm export</span
+                  <span style="color: var(--green)"
+                    >pnpm export C:\path\to\workspace</span
                   ><br /><br />
-                  <span style="color: var(--tx3)"># 导出全部历史对话</span
+                  <span style="color: var(--tx3)"
+                    ># 导出指定工作区的所有对话</span
                   ><br />
-                  <span style="color: var(--green)">pnpm export-all</span>
+                  <span style="color: var(--green)"
+                    >pnpm export-all C:\path\to\workspace</span
+                  ><br /><br />
+                  <span style="color: var(--tx3)"
+                    ># 不传路径 = 导出 AGP 自身目录的对话</span
+                  ><br />
+                  <span style="color: var(--green)">pnpm export</span>
                 </div>
                 <div
                   style="margin-top: 4px; font-size: 0.75rem; color: var(--tx3)"
@@ -530,7 +539,7 @@
                       background: var(--bg0);
                       font-size: 0.72rem;
                     "
-                    >.agp/exports/</code
+                    >&lt;目标工作区&gt;/.agp/exports/</code
                   >
                   目录下
                 </div>

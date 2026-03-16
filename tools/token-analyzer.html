@@ -470,6 +470,37 @@
     </script>
   </head>
   <body>
+    <a
+      href="index.html"
+      style="
+        position: fixed;
+        top: 14px;
+        left: 14px;
+        z-index: 999;
+        background: var(--bg2);
+        border: 1px solid var(--bd);
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--tx2);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        box-shadow: var(--shadow);
+      "
+      title="返回主页"
+      onmouseover="
+        this.style.borderColor = 'var(--bd-glow)';
+        this.style.color = 'var(--tx1)';
+      "
+      onmouseout="
+        this.style.borderColor = 'var(--bd)';
+        this.style.color = 'var(--tx2)';
+      "
+      ><i data-lucide="home" style="width: 18px; height: 18px"></i
+    ></a>
     <button class="tt" id="tt" title="Toggle theme">
       <i data-lucide="moon" style="width: 18px; height: 18px"></i>
     </button>

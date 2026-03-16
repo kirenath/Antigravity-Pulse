@@ -607,6 +607,38 @@
     </script>
   </head>
   <body>
+    <a
+      href="index.html"
+      style="
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-primary);
+        text-decoration: none;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-lg);
+      "
+      title="返回主页"
+      onmouseover="
+        this.style.borderColor = 'var(--border-glow)';
+        this.style.transform = 'scale(1.1)';
+      "
+      onmouseout="
+        this.style.borderColor = 'var(--border)';
+        this.style.transform = 'scale(1)';
+      "
+      >🏠</a
+    >
     <button class="theme-toggle" id="themeToggle" title="切换亮色/暗色模式">
       🌙
     </button>
@@ -1121,9 +1153,10 @@
         const compTag = t.compressed
           ? ' <span title="上下文压缩后，缓存失效，重新写入" style="color:var(--accent-amber)">🗜️</span>'
           : "";
-        const subTag = t.subCallCount > 1
-          ? ` <span title="${t.subCallCount} 次 API 调用" style="color:var(--accent-cyan);font-size:0.7rem">×${t.subCallCount}</span>`
-          : "";
+        const subTag =
+          t.subCallCount > 1
+            ? ` <span title="${t.subCallCount} 次 API 调用" style="color:var(--accent-cyan);font-size:0.7rem">×${t.subCallCount}</span>`
+            : "";
         return `<tr${t.compressed ? ' style="background:rgba(245,158,11,0.06)"' : ""}>
         <td>#${t.id}${compTag}${subTag}</td>
         <td>${fmtK(t.inputTokens)}</td>

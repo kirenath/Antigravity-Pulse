@@ -393,7 +393,59 @@
               >AGP (ag-pulse)</code
             >
             导出的 JSON 文件。<br />
-            你需要安装 AGP 插件，并且 Antigravity 正在运行中。
+            先将 AGP 项目拉取到本地（<code
+              style="
+                font-family: &quot;Fira Code&quot;, monospace;
+                padding: 1px 5px;
+                border-radius: 4px;
+                background: var(--bg0);
+                font-size: 0.78rem;
+              "
+              >git clone</code
+            >
+            +
+            <code
+              style="
+                font-family: &quot;Fira Code&quot;, monospace;
+                padding: 1px 5px;
+                border-radius: 4px;
+                background: var(--bg0);
+                font-size: 0.78rem;
+              "
+              >pnpm install</code
+            >），然后在 AGP 目录下运行导出命令。
+          </div>
+          <div
+            style="
+              margin-bottom: 16px;
+              padding: 12px 16px;
+              border-radius: var(--radius-sm);
+              background: var(--bg1);
+              border-left: 3px solid var(--pink);
+            "
+          >
+            <strong style="color: var(--pink)">🔒 安全提示</strong><br />
+            导出的对话数据（<code
+              style="
+                font-family: &quot;Fira Code&quot;, monospace;
+                padding: 1px 5px;
+                border-radius: 4px;
+                background: var(--bg0);
+                font-size: 0.78rem;
+              "
+              >.agp/</code
+            >）包含完整对话内容，请务必将其加入
+            <code
+              style="
+                font-family: &quot;Fira Code&quot;, monospace;
+                padding: 1px 5px;
+                border-radius: 4px;
+                background: var(--bg0);
+                font-size: 0.78rem;
+              "
+              >.gitignore</code
+            >
+            防止泄露！
           </div>
           <div style="display: flex; flex-direction: column; gap: 12px">
             <div style="display: flex; gap: 12px; align-items: flex-start">
@@ -421,8 +473,7 @@
                 <strong style="color: var(--tx1)"
                   >确保 Antigravity 正在运行</strong
                 ><br />
-                在 Antigravity 中打开一个工作区，确保 Antigravity
-                处于活跃状态。
+                在 Antigravity 中打开一个工作区，确保 Antigravity 处于活跃状态。
               </div>
             </div>
             <div style="display: flex; gap: 12px; align-items: flex-start">

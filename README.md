@@ -1,6 +1,21 @@
 # Antigravity Pulse
 
-**Antigravity Pulse** 是Antigravity的实时资源监控插件。在[Antigravity Context Window Monitor](https://github.com/lalalavir/Antigravity-Context-Window-Monitor)的基础上，新增 **5 小时滚动窗口分析**，帮助你实时掌握各配额组的用量节奏。
+**Antigravity Pulse (AGP)** 是 Antigravity 的对话分析 & 资源监控工具集。拉取到本地后直接运行，通过读取本机的 Antigravity Language Server 数据来导出对话、分析 token 消耗和估算 API 成本。
+
+## 快速开始
+
+```bash
+git clone https://github.com/kirenath/Antigravity-Pulse.git
+cd Antigravity-Pulse
+pnpm install
+```
+
+> [!CAUTION]
+> **安全提示：** 导出的对话数据保存在 `.agp/` 目录下，包含完整的对话内容。如果你在其他项目中使用 AGP，请务必将 `.agp/` 添加到该项目的 `.gitignore`，否则对话内容可能会被意外提交到 Git 仓库中泄露！
+>
+> ```bash
+> echo ".agp/" >> .gitignore
+> ```
 
 ## 功能
 
@@ -34,31 +49,24 @@
 
 ## 对话导出
 
-AGP 可以将 Antigravity 的对话数据导出为 JSON 文件，供 Web 分析工具使用。
-
-### 前提条件
+在 AGP 项目目录下，通过命令行导出 Antigravity 对话数据为 JSON 文件。
 
 > [!IMPORTANT]
-> 导出功能需要 Antigravity Language Server (LS) 正在运行。你必须有一个**当前打开的 VS Code 窗口**且 Antigravity 处于活动状态。
-
-### 导出命令
+> 导出时 Antigravity 必须正在运行（即你有一个打开的 Antigravity 窗口且处于活动状态）。
 
 ```bash
-# 导出当前活跃的对话（需要在 VS Code 中有打开的对话）
+# 导出当前活跃的对话
 pnpm export
 
-# 导出所有对话（当前工作区中的全部历史对话）
+# 导出所有对话
 pnpm export-all
 ```
 
 导出的 JSON 文件保存在 `.agp/exports/` 目录下。
 
-### 注意事项
-
 - 只有通过 `pnpm export` 导出的 JSON 文件才能被分析工具识别
-- 暂不支持直接解析 Antigravity 的原始对话数据
-- 导出的 JSON 包含对话内容、token 用量、checkpoint 数据等
-- 所有数据处理均在本地完成
+- 暂不支持直接解析 Antigravity 的原始聊天数据
+- 所有数据处理均在本地完成，不会上传
 
 ## Web 分析工具
 

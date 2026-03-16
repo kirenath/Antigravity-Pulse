@@ -344,10 +344,194 @@
           </div>
         </a>
       </div>
+      <!-- Guide -->
+      <div
+        class="guide"
+        style="
+          margin-top: 32px;
+          padding: 24px 28px;
+          border-radius: var(--radius);
+          background: var(--bg2);
+          border: 1px solid var(--bd);
+          box-shadow: var(--shadow);
+        "
+      >
+        <h2
+          style="
+            font-family: &quot;Fira Code&quot;, monospace;
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          "
+        >
+          <i data-lucide="book-marked" style="width: 20px; height: 20px"></i>
+          使用教程
+        </h2>
+        <div style="font-size: 0.84rem; line-height: 1.8; color: var(--tx2)">
+          <div
+            style="
+              margin-bottom: 16px;
+              padding: 12px 16px;
+              border-radius: var(--radius-sm);
+              background: var(--bg1);
+              border-left: 3px solid var(--amber);
+            "
+          >
+            <strong style="color: var(--amber)">⚠️ 前提条件</strong><br />
+            这些工具只能分析由
+            <code
+              style="
+                font-family: &quot;Fira Code&quot;, monospace;
+                padding: 1px 5px;
+                border-radius: 4px;
+                background: var(--bg0);
+                font-size: 0.78rem;
+              "
+              >AGP (ag-pulse)</code
+            >
+            导出的 JSON 文件。<br />
+            你需要安装 AGP 插件，并且 Antigravity 正在运行中。
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; gap: 12px; align-items: flex-start">
+              <span
+                style="
+                  flex-shrink: 0;
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 50%;
+                  background: linear-gradient(
+                    135deg,
+                    var(--purple),
+                    var(--cyan)
+                  );
+                  color: #fff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 0.72rem;
+                  font-weight: 700;
+                "
+                >1</span
+              >
+              <div>
+                <strong style="color: var(--tx1)"
+                  >确保 Antigravity 正在运行</strong
+                ><br />
+                在 Antigravity 中打开一个工作区，确保 Antigravity
+                处于活跃状态。
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: flex-start">
+              <span
+                style="
+                  flex-shrink: 0;
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 50%;
+                  background: linear-gradient(
+                    135deg,
+                    var(--purple),
+                    var(--cyan)
+                  );
+                  color: #fff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 0.72rem;
+                  font-weight: 700;
+                "
+                >2</span
+              >
+              <div>
+                <strong style="color: var(--tx1)">导出对话数据</strong><br />
+                在 AGP 项目目录下执行：
+                <div
+                  style="
+                    margin-top: 6px;
+                    padding: 8px 12px;
+                    border-radius: var(--radius-sm);
+                    background: var(--bg0);
+                    font-family: &quot;Fira Code&quot;, monospace;
+                    font-size: 0.76rem;
+                  "
+                >
+                  <span style="color: var(--tx3)"># 导出当前活跃对话</span
+                  ><br />
+                  <span style="color: var(--green)">pnpm export</span
+                  ><br /><br />
+                  <span style="color: var(--tx3)"># 导出全部历史对话</span
+                  ><br />
+                  <span style="color: var(--green)">pnpm export-all</span>
+                </div>
+                <div
+                  style="margin-top: 4px; font-size: 0.75rem; color: var(--tx3)"
+                >
+                  JSON 文件会保存在
+                  <code
+                    style="
+                      font-family: &quot;Fira Code&quot;, monospace;
+                      padding: 1px 5px;
+                      border-radius: 4px;
+                      background: var(--bg0);
+                      font-size: 0.72rem;
+                    "
+                    >.agp/exports/</code
+                  >
+                  目录下
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: flex-start">
+              <span
+                style="
+                  flex-shrink: 0;
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 50%;
+                  background: linear-gradient(
+                    135deg,
+                    var(--purple),
+                    var(--cyan)
+                  );
+                  color: #fff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 0.72rem;
+                  font-weight: 700;
+                "
+                >3</span
+              >
+              <div>
+                <strong style="color: var(--tx1)">拖入 JSON 文件</strong><br />
+                打开上面任一工具页面，将导出的
+                <code
+                  style="
+                    font-family: &quot;Fira Code&quot;, monospace;
+                    padding: 1px 5px;
+                    border-radius: 4px;
+                    background: var(--bg0);
+                    font-size: 0.78rem;
+                  "
+                  >.json</code
+                >
+                文件拖入即可。所有解析均在浏览器本地完成，数据不会上传。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <footer>
-      AGP Tools by <a href="https://github.com" target="_blank">AG Pulse</a> ·
-      完全本地运行 · 数据不出浏览器
+      AGP Tools by
+      <a href="https://github.com/kirenath/Antigravity-Pulse" target="_blank"
+        >AG Pulse</a
+      >
+      · 完全本地运行 · 数据不出浏览器
     </footer>
     <script>
       const ttb = document.getElementById("tt");

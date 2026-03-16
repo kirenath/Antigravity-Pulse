@@ -32,6 +32,69 @@
 - `AG Pulse: Show Details` — Quick Pick 详情面板
 - `AG Pulse: Refresh` — 手动刷新
 
+## 对话导出
+
+AGP 可以将 Antigravity 的对话数据导出为 JSON 文件，供 Web 分析工具使用。
+
+### 前提条件
+
+> [!IMPORTANT]
+> 导出功能需要 Antigravity Language Server (LS) 正在运行。你必须有一个**当前打开的 VS Code 窗口**且 Antigravity 处于活动状态。
+
+### 导出命令
+
+```bash
+# 导出当前活跃的对话（需要在 VS Code 中有打开的对话）
+pnpm export
+
+# 导出所有对话（当前工作区中的全部历史对话）
+pnpm export-all
+```
+
+导出的 JSON 文件保存在 `.agp/exports/` 目录下。
+
+### 注意事项
+
+- 只有通过 `pnpm export` 导出的 JSON 文件才能被分析工具识别
+- 暂不支持直接解析 Antigravity 的原始对话数据
+- 导出的 JSON 包含对话内容、token 用量、checkpoint 数据等
+- 所有数据处理均在本地完成
+
+## Web 分析工具
+
+AGP 提供三个独立的 Web 分析工具，可在浏览器中本地运行。
+
+> 在线访问：`https://kirenath.github.io/Antigravity-Pulse/tools/`  
+> 或直接在浏览器中打开 `tools/index.html`
+
+### 📖 [Conversation Viewer](tools/conversation-viewer.html)
+
+对话内容阅读器 — 拖入导出 JSON，可视化阅读对话内容。
+
+- Markdown 渲染 + 代码语法高亮
+- AI 推理过程 / 工具调用折叠面板
+- 全文搜索和消息类型筛选
+- **导出精简 JSON** — 去掉 checkpoint、token 等元数据，只保留对话内容
+- **导出 Markdown** — 生成适合存档的 `.md` 文件
+
+### 💰 [Cost Calculator](tools/cost-calculator.html)
+
+批量成本概览 — 支持多文件拖入，一眼看总花费。
+
+- 对比三种计价方式：无缓存 API / 有缓存 API / AGP 估算
+- 可视化成本对比条形图
+- 上下文压缩检测
+- 每轮对话的 token 消耗详情
+
+### 🔬 [Token Analyzer](tools/token-analyzer.html)
+
+逐条消息深入分析 — 不依赖 Checkpoint，直接从对话文本估算 token。
+
+- 每轮 AI 回复的 Input/Output token 拆解
+- 工具路由分类（Read/Write/Other）及颜色标注
+- What-If 分析：切换主模型、工具路由模式、缓存模式
+- Context 增长曲线图
+
 ## 致谢 / Acknowledgements
 
 本项目参考了以下优秀开源项目：

@@ -809,6 +809,23 @@
           <button class="btn" id="ttlb" onclick="tap('tl')">
             <i data-lucide="wrench" style="width: 13px; height: 13px"></i> 工具
           </button>
+          <div
+            class="sep"
+            style="
+              width: 1px;
+              height: 20px;
+              background: var(--bd);
+              margin: 0 2px;
+            "
+          ></div>
+          <button class="btn" onclick="exportJSON()">
+            <i data-lucide="file-json" style="width: 13px; height: 13px"></i>
+            导出 JSON
+          </button>
+          <button class="btn" onclick="exportMD()">
+            <i data-lucide="file-text" style="width: 13px; height: 13px"></i>
+            导出 MD
+          </button>
         </div>
         <div class="tl" id="tl"></div>
       </div>
@@ -1220,6 +1237,94 @@ ${pn}</div>`;
           D = null;
         }
       });
+      // ─── Export: Simplified JSON ──────────────────────────────────
+      function exportJSON() {
+        if (!D) return;
+        const simple = {
+          title: D.title || D.cascadeId || "Untitled",
+          model: gN(D.model),
+          createdTime: D.createdTime,
+          lastModifiedTime: D.lastModifiedTime,
+          messages: (D.messages || [])
+            .filter((m) => m.type !== "checkpoint")
+            .map((m) => {
+              const out = {
+                role: m.type === "user" ? "user" : "assistant",
+                content: m.content || "",
+              };
+              if (m.thinking) out.thinking = m.thinking;
+              if (m.toolCalls && m.toolCalls.length > 0) {
+                out.toolCalls = m.toolCalls.map((tc) => ({
+                  name: tc.name,
+                  args: tc.args,
+                }));
+              }
+              return out;
+            }),
+        };
+        const blob = new Blob([JSON.stringify(simple, null, 2)], {
+          type: "application/json",
+        });
+        const fn =
+          (D.title || "conversation").replace(/[^\w\u4e00-\u9fff]+/g, "_") +
+          "_simple.json";
+        dlBlob(blob, fn);
+      }
+
+      // ─── Export: Markdown ────────────────────────────────────────────
+      function exportMD() {
+        if (!D) return;
+        let md = `# ${D.title || D.cascadeId || "Untitled"}\n`;
+        md += `> ${gN(D.model)}`;
+        if (D.createdTime) {
+          try {
+            md += ` · ${new Date(D.createdTime).toLocaleString("zh-CN")}`;
+          } catch {}
+        }
+        md += "\n\n---\n\n";
+        for (const m of D.messages || []) {
+          if (m.type === "checkpoint") continue;
+          if (m.type === "user") {
+            md += `## 👤 用户\n\n${m.content || ""}\n\n`;
+          } else if (m.type === "assistant") {
+            md += `## 🤖 AI`;
+            if (m.model) md += ` (${gN(m.model)})`;
+            md += "\n\n";
+            if (m.thinking) {
+              md += `<details>\n<summary>💭 思考过程</summary>\n\n${m.thinking}\n\n</details>\n\n`;
+            }
+            if (m.toolCalls && m.toolCalls.length > 0) {
+              md += `<details>\n<summary>🔧 工具调用 (${m.toolCalls.length} 个)</summary>\n\n`;
+              for (const tc of m.toolCalls) {
+                md += `**${tc.name}**\n\`\`\`json\n`;
+                try {
+                  md += JSON.stringify(JSON.parse(tc.args), null, 2);
+                } catch {
+                  md += tc.args || "";
+                }
+                md += "\n```\n\n";
+              }
+              md += "</details>\n\n";
+            }
+            if (m.content) md += `${m.content}\n\n`;
+            md += "---\n\n";
+          }
+        }
+        const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+        const fn =
+          (D.title || "conversation").replace(/[^\w\u4e00-\u9fff]+/g, "_") +
+          ".md";
+        dlBlob(blob, fn);
+      }
+
+      function dlBlob(blob, filename) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
       // Init icons
       lucide.createIcons();
     </script>
